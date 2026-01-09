@@ -7,16 +7,14 @@ defmodule BB.Example.SO101.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      BB.Example.SO101Web.Telemetry,
-      {DNSCluster, query: Application.get_env(:bb_example_so101, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: BB.Example.SO101.PubSub},
-      # Start a worker by calling: BB.Example.SO101.Worker.start_link(arg)
-      # {BB.Example.SO101.Worker, arg},
-      # Start to serve requests, typically the last entry
-      BB.Example.SO101Web.Endpoint,
-      {BB.Example.SO101.Robot, robot_opts()}
-    ]
+    children =
+      [
+        BB.Example.SO101Web.Telemetry,
+        {DNSCluster,
+         query: Application.get_env(:bb_example_so101, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: BB.Example.SO101.PubSub},
+        BB.Example.SO101Web.Endpoint
+      ] ++ robot_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -30,6 +28,14 @@ defmodule BB.Example.SO101.Application do
   def config_change(changed, _new, removed) do
     BB.Example.SO101Web.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp robot_children do
+    if Application.get_env(:bb_example_so101, :start_robot, true) do
+      [{BB.Example.SO101.Robot, robot_opts()}]
+    else
+      []
+    end
   end
 
   defp robot_opts do

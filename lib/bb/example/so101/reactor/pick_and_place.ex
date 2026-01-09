@@ -32,49 +32,49 @@ defmodule BB.Example.SO101.Reactor.PickAndPlace do
   """
   use Reactor, extensions: [BB.Reactor]
 
-  input :pick_pose
-  input :place_pose
+  input(:pick_pose)
+  input(:place_pose)
 
   wait_for_state :ready do
-    states [:idle]
-    timeout 5000
+    states([:idle])
+    timeout(5000)
   end
 
   command :approach_pick do
-    command :move_to_pose
-    argument :target, input(:pick_pose)
-    wait_for :ready
+    command(:move_to_pose)
+    argument(:target, input(:pick_pose))
+    wait_for(:ready)
   end
 
   step :simulate_grip do
-    argument :_prev, result(:approach_pick)
+    argument(:_prev, result(:approach_pick))
 
-    run fn _args, _context ->
+    run(fn _args, _context ->
       Process.sleep(500)
       {:ok, :gripped}
-    end
+    end)
   end
 
   command :approach_place do
-    command :move_to_pose
-    argument :target, input(:place_pose)
-    wait_for :simulate_grip
-    compensate :home
+    command(:move_to_pose)
+    argument(:target, input(:place_pose))
+    wait_for(:simulate_grip)
+    compensate(:home)
   end
 
   step :simulate_release do
-    argument :_prev, result(:approach_place)
+    argument(:_prev, result(:approach_place))
 
-    run fn _args, _context ->
+    run(fn _args, _context ->
       Process.sleep(500)
       {:ok, :released}
-    end
+    end)
   end
 
   command :return_home do
-    command :home
-    wait_for :simulate_release
+    command(:home)
+    wait_for(:simulate_release)
   end
 
-  return :return_home
+  return(:return_home)
 end

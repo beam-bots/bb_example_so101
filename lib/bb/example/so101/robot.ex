@@ -1,14 +1,40 @@
 defmodule BB.Example.SO101.Robot do
+  @moduledoc """
+  Robot definition for the SO-101 arm from TheRobotStudio.
+
+  The SO-101 is a 6-DOF robot arm using Feetech STS3215 serial bus servos.
+  Kinematics derived from the official URDF (new calibration - zeros at joint midpoints).
+
+  ## Joint Configuration
+
+  | Joint | Servo ID | Type | Range |
+  |-------|----------|------|-------|
+  | shoulder_pan | 1 | revolute | ±110° |
+  | shoulder_lift | 2 | revolute | ±100° |
+  | elbow_flex | 3 | revolute | ±97° |
+  | wrist_flex | 4 | revolute | ±95° |
+  | wrist_roll | 5 | revolute | ±160° |
+  | gripper | 6 | revolute | 10°-100° |
+
+  ## Link Lengths
+
+  - Base height: 62mm
+  - Shoulder assembly: 54mm
+  - Upper arm: 113mm
+  - Forearm: 135mm
+  - Wrist: 61mm
+  - Gripper to EE: ~98mm
+  """
   use BB
 
   parameters do
-    bridge(:robotis, {BB.Servo.Robotis.Bridge, controller: :dynamixel}, simulation: :mock)
+    bridge(:feetech, {BB.Servo.Feetech.Bridge, controller: :feetech}, simulation: :mock)
 
     group :config do
-      group :robotis do
+      group :feetech do
         param(:device,
           type: :string,
-          doc: "The serial device connected to the Robotis controller"
+          doc: "The serial device connected to the Feetech servo bus"
         )
 
         param(:baud_rate,
@@ -54,75 +80,73 @@ defmodule BB.Example.SO101.Robot do
 
   controllers do
     controller(
-      :dynamixel,
-      {BB.Servo.Robotis.Controller,
-       port: param([:config, :robotis, :device]),
-       baud_rate: param([:config, :robotis, :baud_rate]),
-       control_table: Robotis.ControlTable,
+      :feetech,
+      {BB.Servo.Feetech.Controller,
+       port: param([:config, :feetech, :device]),
+       baud_rate: param([:config, :feetech, :baud_rate]),
+       control_table: Feetech.ControlTable.STS3215,
        disarm_action: :hold},
-      simulation: :mock
+      simulation: :omit
     )
   end
 
   topology do
     link :base_link do
-      # Base plate visual
       visual do
         origin do
-          z(~u(0.036 meter))
+          z(~u(0.031 meter))
         end
 
         cylinder do
-          radius(~u(0.04 meter))
-          height(~u(0.072 meter))
+          radius(~u(0.035 meter))
+          height(~u(0.062 meter))
         end
 
         material do
-          name(:base_grey)
+          name(:base_dark)
 
           color do
-            red(0.3)
-            green(0.3)
-            blue(0.3)
+            red(0.15)
+            green(0.15)
+            blue(0.15)
             alpha(1.0)
           end
         end
       end
 
-      # Waist joint - base rotation around Z axis
-      joint :waist do
+      joint :shoulder_pan do
         type(:revolute)
 
         origin do
-          z(~u(0.072 meter))
+          z(~u(0.062 meter))
         end
-
-        # Default axis is Z (0, 0, 1)
 
         limit do
-          lower(~u(-180 degree))
-          upper(~u(180 degree))
-          effort(~u(8 newton_meter))
-          velocity(~u(180 degree_per_second))
+          lower(~u(-110 degree))
+          upper(~u(110 degree))
+          effort(~u(2.5 newton_meter))
+          velocity(~u(360 degree_per_second))
         end
 
-        actuator(:waist_servo, {BB.Servo.Robotis.Actuator, servo_id: 1, controller: :dynamixel})
+        actuator(
+          :shoulder_pan_servo,
+          {BB.Servo.Feetech.Actuator, servo_id: 1, controller: :feetech}
+        )
 
         link :shoulder_link do
-          # Shoulder motor housing
           visual do
             origin do
-              z(~u(0.019 meter))
+              z(~u(0.027 meter))
             end
 
             box do
-              x(~u(0.05 meter))
-              y(~u(0.045 meter))
-              z(~u(0.038 meter))
+              x(~u(0.04 meter))
+              y(~u(0.04 meter))
+              z(~u(0.054 meter))
             end
 
             material do
-              name(:shoulder_black)
+              name(:servo_black)
 
               color do
                 red(0.1)
@@ -133,15 +157,11 @@ defmodule BB.Example.SO101.Robot do
             end
           end
 
-          # Shoulder joint - pitch around Y axis
-          # Note: Physical arm has dual servos (IDs 2 & 3) for torque.
-          # Servo 3 should be configured in reverse shadow mode on the servo firmware.
-          # We control via servo 2; servo 3 mirrors automatically.
-          joint :shoulder do
+          joint :shoulder_lift do
             type(:revolute)
 
             origin do
-              z(~u(0.03865 meter))
+              z(~u(0.054 meter))
             end
 
             axis do
@@ -149,50 +169,46 @@ defmodule BB.Example.SO101.Robot do
             end
 
             limit do
-              lower(~u(-108 degree))
-              upper(~u(113 degree))
-              effort(~u(18 newton_meter))
-              velocity(~u(180 degree_per_second))
+              lower(~u(-100 degree))
+              upper(~u(100 degree))
+              effort(~u(2.5 newton_meter))
+              velocity(~u(360 degree_per_second))
             end
 
             actuator(
-              :shoulder_servo,
-              {BB.Servo.Robotis.Actuator, servo_id: 2, controller: :dynamixel, reverse?: true}
+              :shoulder_lift_servo,
+              {BB.Servo.Feetech.Actuator, servo_id: 2, controller: :feetech}
             )
 
             link :upper_arm_link do
-              # Upper arm segment (206mm from shoulder to elbow)
               visual do
                 origin do
-                  x(~u(0.025 meter))
-                  z(~u(0.1 meter))
+                  x(~u(0.0565 meter))
                 end
 
                 box do
-                  x(~u(0.035 meter))
-                  y(~u(0.035 meter))
-                  z(~u(0.2 meter))
+                  x(~u(0.113 meter))
+                  y(~u(0.03 meter))
+                  z(~u(0.03 meter))
                 end
 
                 material do
-                  name(:upper_arm_silver)
+                  name(:arm_white)
 
                   color do
-                    red(0.7)
-                    green(0.7)
-                    blue(0.75)
+                    red(0.9)
+                    green(0.9)
+                    blue(0.9)
                     alpha(1.0)
                   end
                 end
               end
 
-              # Elbow joint - pitch around Y axis
-              joint :elbow do
+              joint :elbow_flex do
                 type(:revolute)
 
                 origin do
-                  x(~u(0.05 meter))
-                  z(~u(0.2 meter))
+                  x(~u(0.113 meter))
                 end
 
                 axis do
@@ -200,48 +216,46 @@ defmodule BB.Example.SO101.Robot do
                 end
 
                 limit do
-                  lower(~u(-108 degree))
-                  upper(~u(93 degree))
-                  effort(~u(13 newton_meter))
-                  velocity(~u(180 degree_per_second))
+                  lower(~u(-97 degree))
+                  upper(~u(97 degree))
+                  effort(~u(2.5 newton_meter))
+                  velocity(~u(360 degree_per_second))
                 end
 
                 actuator(
                   :elbow_servo,
-                  {BB.Servo.Robotis.Actuator, servo_id: 4, controller: :dynamixel}
+                  {BB.Servo.Feetech.Actuator, servo_id: 3, controller: :feetech}
                 )
 
                 link :forearm_link do
-                  # Forearm segment (200mm from elbow to wrist)
                   visual do
                     origin do
-                      x(~u(0.1 meter))
+                      x(~u(0.0675 meter))
                     end
 
                     box do
-                      x(~u(0.2 meter))
-                      y(~u(0.035 meter))
-                      z(~u(0.035 meter))
+                      x(~u(0.135 meter))
+                      y(~u(0.025 meter))
+                      z(~u(0.025 meter))
                     end
 
                     material do
-                      name(:forearm_silver)
+                      name(:forearm_white)
 
                       color do
-                        red(0.7)
-                        green(0.7)
-                        blue(0.75)
+                        red(0.9)
+                        green(0.9)
+                        blue(0.9)
                         alpha(1.0)
                       end
                     end
                   end
 
-                  # Wrist angle joint - pitch around Y axis
-                  joint :wrist_angle do
+                  joint :wrist_flex do
                     type(:revolute)
 
                     origin do
-                      x(~u(0.2 meter))
+                      x(~u(0.135 meter))
                     end
 
                     axis do
@@ -249,28 +263,27 @@ defmodule BB.Example.SO101.Robot do
                     end
 
                     limit do
-                      lower(~u(-100 degree))
-                      upper(~u(123 degree))
-                      effort(~u(5 newton_meter))
-                      velocity(~u(180 degree_per_second))
+                      lower(~u(-95 degree))
+                      upper(~u(95 degree))
+                      effort(~u(2.5 newton_meter))
+                      velocity(~u(360 degree_per_second))
                     end
 
                     actuator(
-                      :wrist_angle_servo,
-                      {BB.Servo.Robotis.Actuator, servo_id: 5, controller: :dynamixel}
+                      :wrist_flex_servo,
+                      {BB.Servo.Feetech.Actuator, servo_id: 4, controller: :feetech}
                     )
 
                     link :wrist_link do
-                      # Wrist segment (65mm)
                       visual do
                         origin do
-                          x(~u(0.0325 meter))
+                          x(~u(0.0305 meter))
                         end
 
                         box do
-                          x(~u(0.065 meter))
-                          y(~u(0.035 meter))
-                          z(~u(0.035 meter))
+                          x(~u(0.061 meter))
+                          y(~u(0.025 meter))
+                          z(~u(0.025 meter))
                         end
 
                         material do
@@ -285,12 +298,11 @@ defmodule BB.Example.SO101.Robot do
                         end
                       end
 
-                      # Wrist rotate joint - roll around X axis
-                      joint :wrist_rotate do
+                      joint :wrist_roll do
                         type(:revolute)
 
                         origin do
-                          x(~u(0.065 meter))
+                          x(~u(0.061 meter))
                         end
 
                         axis do
@@ -298,19 +310,18 @@ defmodule BB.Example.SO101.Robot do
                         end
 
                         limit do
-                          lower(~u(-180 degree))
-                          upper(~u(180 degree))
-                          effort(~u(1 newton_meter))
-                          velocity(~u(180 degree_per_second))
+                          lower(~u(-160 degree))
+                          upper(~u(160 degree))
+                          effort(~u(2.5 newton_meter))
+                          velocity(~u(360 degree_per_second))
                         end
 
                         actuator(
-                          :wrist_rotate_servo,
-                          {BB.Servo.Robotis.Actuator, servo_id: 6, controller: :dynamixel}
+                          :wrist_roll_servo,
+                          {BB.Servo.Feetech.Actuator, servo_id: 5, controller: :feetech}
                         )
 
                         link :gripper_link do
-                          # Gripper base
                           visual do
                             origin do
                               x(~u(0.02 meter))
@@ -318,8 +329,8 @@ defmodule BB.Example.SO101.Robot do
 
                             box do
                               x(~u(0.04 meter))
-                              y(~u(0.05 meter))
-                              z(~u(0.025 meter))
+                              y(~u(0.04 meter))
+                              z(~u(0.05 meter))
                             end
 
                             material do
@@ -334,46 +345,43 @@ defmodule BB.Example.SO101.Robot do
                             end
                           end
 
-                          # Gripper - left finger (prismatic)
-                          # The gripper servo (ID 7) drives a linear mechanism
                           joint :gripper do
-                            type(:prismatic)
+                            type(:revolute)
 
                             origin do
-                              x(~u(0.0415 meter))
+                              x(~u(0.04 meter))
                             end
 
                             axis do
-                              pitch(~u(90 degree))
+                              roll(~u(90 degree))
                             end
 
                             limit do
-                              # Finger stroke: 15mm to 37mm from centre
-                              lower(~u(0.015 meter))
-                              upper(~u(0.037 meter))
-                              effort(~u(5 newton))
-                              velocity(~u(0.05 meter_per_second))
+                              lower(~u(10 degree))
+                              upper(~u(100 degree))
+                              effort(~u(2.5 newton_meter))
+                              velocity(~u(360 degree_per_second))
                             end
 
-                            # Note: Gripper actuation requires custom handling
-                            # as the servo rotation maps to linear finger motion.
+                            actuator(
+                              :gripper_servo,
+                              {BB.Servo.Feetech.Actuator, servo_id: 6, controller: :feetech}
+                            )
 
-                            link :left_finger_link do
-                              # Finger
+                            link :jaw_link do
                               visual do
                                 origin do
-                                  x(~u(0.02 meter))
-                                  y(~u(0.015 meter))
+                                  x(~u(0.029 meter))
                                 end
 
                                 box do
-                                  x(~u(0.04 meter))
-                                  y(~u(0.01 meter))
-                                  z(~u(0.02 meter))
+                                  x(~u(0.058 meter))
+                                  y(~u(0.03 meter))
+                                  z(~u(0.01 meter))
                                 end
 
                                 material do
-                                  name(:finger_grey)
+                                  name(:jaw_grey)
 
                                   color do
                                     red(0.4)
@@ -388,7 +396,7 @@ defmodule BB.Example.SO101.Robot do
                                 type(:fixed)
 
                                 origin do
-                                  x(~u(0.0385 meter))
+                                  x(~u(0.058 meter))
                                 end
 
                                 link(:ee_link)

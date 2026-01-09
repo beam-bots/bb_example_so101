@@ -22,13 +22,14 @@ defmodule BB.Example.SO101.Command.DemoCircle do
   alias BB.IK.DLS.Motion
   alias BB.Math.Vec3
 
-  # Safe starting position - comfortably within workspace
+  # Safe starting position - comfortably within SO101 workspace
   # X forward, Y=0 (centred), Z at reasonable height
-  @start_x 0.25
+  # SO101 has ~350mm max reach, so 150mm forward is safe
+  @start_x 0.15
   @start_y 0.0
   @start_z 0.20
 
-  @default_radius 0.05
+  @default_radius 0.03
   @default_points 16
   @default_delay 150
 

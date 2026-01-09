@@ -1,9 +1,9 @@
 defmodule BB.Example.SO101.Command.DisableTorque do
   @moduledoc """
-  Command handler to disable holding torque on all Robotis servos.
+  Command handler to disable holding torque on all Feetech servos.
 
   This command writes `torque_enable: false` to all servos registered
-  with the Dynamixel controller, allowing them to be moved freely by hand.
+  with the Feetech controller, allowing them to be moved freely by hand.
 
   ## Usage
 
@@ -22,7 +22,7 @@ defmodule BB.Example.SO101.Command.DisableTorque do
   """
   use BB.Command
 
-  @controller :dynamixel
+  @controller :feetech
 
   @impl BB.Command
   def handle_command(_goal, context, state) do

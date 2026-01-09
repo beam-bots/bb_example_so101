@@ -20,24 +20,24 @@ defmodule BB.Example.SO101.Reactor.DemoSequence do
   use Reactor, extensions: [BB.Reactor]
 
   wait_for_state :ready do
-    states [:idle]
-    timeout 5000
+    states([:idle])
+    timeout(5000)
   end
 
   command :go_home do
-    command :home
-    wait_for :ready
+    command(:home)
+    wait_for(:ready)
   end
 
   command :trace_circle do
-    command :demo_circle
-    wait_for :go_home
+    command(:demo_circle)
+    wait_for(:go_home)
   end
 
   command :return_home do
-    command :home
-    wait_for :trace_circle
+    command(:home)
+    wait_for(:trace_circle)
   end
 
-  return :return_home
+  return(:return_home)
 end

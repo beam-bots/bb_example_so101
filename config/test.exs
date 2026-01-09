@@ -1,5 +1,8 @@
 import Config
 
+# Don't start the robot during tests
+config :bb_example_so101, start_robot: false
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :bb_example_so101, BB.Example.SO101Web.Endpoint,
