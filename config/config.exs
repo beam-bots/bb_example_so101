@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Config module.
 #

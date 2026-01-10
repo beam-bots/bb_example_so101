@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule BB.Example.SO101.Reactor.PickAndPlace do
   @moduledoc """
   Demonstration pick-and-place reactor using BB.Reactor DSL.

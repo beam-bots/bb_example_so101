@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 James Harton
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // If you want to use Phoenix channels, run `mix help phx.gen.channel`
 // to get started and then uncomment the line below.
 // import "./user_socket.js"

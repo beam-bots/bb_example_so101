@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule BB.Example.SO101.Command.MoveToPose do
   @moduledoc """
   Command to move the end effector to a target position using IK.

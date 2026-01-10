@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule BB.Example.SO101 do
   @moduledoc """
   BB.Example.SO101 keeps the contexts that define your domain

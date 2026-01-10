@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule BB.Example.SO101.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications

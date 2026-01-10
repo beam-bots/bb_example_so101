@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule BB.Example.SO101.Robot do
   @moduledoc """
   Robot definition for the SO-101 arm from TheRobotStudio.

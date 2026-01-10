@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 James Harton
+#
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule BB.Example.SO101Web.Router do
   use BB.Example.SO101Web, :router
   import BB.LiveView.Router

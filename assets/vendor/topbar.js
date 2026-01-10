@@ -1,9 +1,7 @@
-/**
- * @license MIT
- * topbar 3.0.0
- * http://buunguyen.github.io/topbar
- * Copyright (c) 2024 Buu Nguyen
- */
+// Copyright (C) 2024 Buu Nguyen
+// SPDX-FileCopyrightText: 2024 Buu Nguyen
+//
+// SPDX-License-Identifier: MIT
 (function (window, document) {
   "use strict";
 

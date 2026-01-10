@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Tailwind Labs, Inc
+//
+// SPDX-License-Identifier: MIT
+
 const plugin = require("tailwindcss/plugin")
 const fs = require("fs")
 const path = require("path")
