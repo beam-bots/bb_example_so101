@@ -32,7 +32,9 @@ defmodule BB.Example.SO101.Robot do
   use BB
 
   parameters do
-    bridge(:feetech, {BB.Servo.Feetech.Bridge, controller: :feetech}, simulation: :mock)
+    bridge(:feetech_bridge, {BB.Servo.Feetech.Bridge, controller: :feetech_controller},
+      simulation: :mock
+    )
 
     group :config do
       group :feetech do
@@ -84,7 +86,7 @@ defmodule BB.Example.SO101.Robot do
 
   controllers do
     controller(
-      :feetech,
+      :feetech_controller,
       {BB.Servo.Feetech.Controller,
        port: param([:config, :feetech, :device]),
        baud_rate: param([:config, :feetech, :baud_rate]),
@@ -134,7 +136,7 @@ defmodule BB.Example.SO101.Robot do
 
         actuator(
           :shoulder_pan_servo,
-          {BB.Servo.Feetech.Actuator, servo_id: 1, controller: :feetech}
+          {BB.Servo.Feetech.Actuator, servo_id: 1, controller: :feetech_controller}
         )
 
         link :shoulder_link do
@@ -181,7 +183,7 @@ defmodule BB.Example.SO101.Robot do
 
             actuator(
               :shoulder_lift_servo,
-              {BB.Servo.Feetech.Actuator, servo_id: 2, controller: :feetech}
+              {BB.Servo.Feetech.Actuator, servo_id: 2, controller: :feetech_controller}
             )
 
             link :upper_arm_link do
@@ -228,7 +230,7 @@ defmodule BB.Example.SO101.Robot do
 
                 actuator(
                   :elbow_servo,
-                  {BB.Servo.Feetech.Actuator, servo_id: 3, controller: :feetech}
+                  {BB.Servo.Feetech.Actuator, servo_id: 3, controller: :feetech_controller}
                 )
 
                 link :forearm_link do
@@ -275,7 +277,7 @@ defmodule BB.Example.SO101.Robot do
 
                     actuator(
                       :wrist_flex_servo,
-                      {BB.Servo.Feetech.Actuator, servo_id: 4, controller: :feetech}
+                      {BB.Servo.Feetech.Actuator, servo_id: 4, controller: :feetech_controller}
                     )
 
                     link :wrist_link do
@@ -322,7 +324,8 @@ defmodule BB.Example.SO101.Robot do
 
                         actuator(
                           :wrist_roll_servo,
-                          {BB.Servo.Feetech.Actuator, servo_id: 5, controller: :feetech}
+                          {BB.Servo.Feetech.Actuator,
+                           servo_id: 5, controller: :feetech_controller}
                         )
 
                         link :gripper_link do
@@ -361,7 +364,7 @@ defmodule BB.Example.SO101.Robot do
                             end
 
                             limit do
-                              lower(~u(10 degree))
+                              lower(~u(-10 degree))
                               upper(~u(100 degree))
                               effort(~u(2.5 newton_meter))
                               velocity(~u(360 degree_per_second))
@@ -369,7 +372,8 @@ defmodule BB.Example.SO101.Robot do
 
                             actuator(
                               :gripper_servo,
-                              {BB.Servo.Feetech.Actuator, servo_id: 6, controller: :feetech}
+                              {BB.Servo.Feetech.Actuator,
+                               servo_id: 6, controller: :feetech_controller}
                             )
 
                             link :jaw_link do
@@ -404,6 +408,40 @@ defmodule BB.Example.SO101.Robot do
                                 end
 
                                 link(:ee_link)
+                              end
+                            end
+                          end
+
+                          joint :fixed_jaw do
+                            type(:fixed)
+
+                            origin do
+                              x(~u(0.04 meter))
+                              z(~u(-0.010 meter))
+                            end
+
+                            link :fixed_jaw_link do
+                              visual do
+                                origin do
+                                  x(~u(0.029 meter))
+                                end
+
+                                box do
+                                  x(~u(0.058 meter))
+                                  y(~u(0.03 meter))
+                                  z(~u(0.01 meter))
+                                end
+
+                                material do
+                                  name(:fixed_jaw_grey)
+
+                                  color do
+                                    red(0.4)
+                                    green(0.4)
+                                    blue(0.4)
+                                    alpha(1.0)
+                                  end
+                                end
                               end
                             end
                           end
