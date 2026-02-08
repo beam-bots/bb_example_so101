@@ -136,7 +136,8 @@ defmodule BB.Example.SO101.Robot do
 
         actuator(
           :shoulder_pan_servo,
-          {BB.Servo.Feetech.Actuator, servo_id: 1, controller: :feetech_controller}
+          {BB.Servo.Feetech.Actuator,
+           servo_id: 1, controller: :feetech_controller, reverse?: true}
         )
 
         link :shoulder_link do
@@ -175,15 +176,16 @@ defmodule BB.Example.SO101.Robot do
             end
 
             limit do
-              lower(~u(-100 degree))
-              upper(~u(100 degree))
+              lower(~u(-10 degree))
+              upper(~u(190 degree))
               effort(~u(2.5 newton_meter))
               velocity(~u(360 degree_per_second))
             end
 
             actuator(
               :shoulder_lift_servo,
-              {BB.Servo.Feetech.Actuator, servo_id: 2, controller: :feetech_controller}
+              {BB.Servo.Feetech.Actuator,
+               servo_id: 2, controller: :feetech_controller, reverse?: true}
             )
 
             link :upper_arm_link do
@@ -222,15 +224,16 @@ defmodule BB.Example.SO101.Robot do
                 end
 
                 limit do
-                  lower(~u(-97 degree))
-                  upper(~u(97 degree))
+                  lower(~u(-187 degree))
+                  upper(~u(7 degree))
                   effort(~u(2.5 newton_meter))
                   velocity(~u(360 degree_per_second))
                 end
 
                 actuator(
                   :elbow_servo,
-                  {BB.Servo.Feetech.Actuator, servo_id: 3, controller: :feetech_controller}
+                  {BB.Servo.Feetech.Actuator,
+                   servo_id: 3, controller: :feetech_controller, reverse?: true}
                 )
 
                 link :forearm_link do
@@ -277,7 +280,8 @@ defmodule BB.Example.SO101.Robot do
 
                     actuator(
                       :wrist_flex_servo,
-                      {BB.Servo.Feetech.Actuator, servo_id: 4, controller: :feetech_controller}
+                      {BB.Servo.Feetech.Actuator,
+                       servo_id: 4, controller: :feetech_controller, reverse?: true}
                     )
 
                     link :wrist_link do
@@ -325,7 +329,7 @@ defmodule BB.Example.SO101.Robot do
                         actuator(
                           :wrist_roll_servo,
                           {BB.Servo.Feetech.Actuator,
-                           servo_id: 5, controller: :feetech_controller}
+                           servo_id: 5, controller: :feetech_controller, reverse?: true}
                         )
 
                         link :gripper_link do
