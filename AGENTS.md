@@ -20,6 +20,14 @@ mix test path:42       # Run single test at line
 mix check --no-retry   # Run all checks (compile, format, credo, dialyzer)
 ```
 
+### Hardware Mix Tasks
+
+```bash
+mix so101.setup_servos /dev/ttyUSB0   # Assign servo IDs (one at a time)
+mix so101.calibrate /dev/ttyUSB0      # Calibrate centre offsets
+mix so101.calibrate /dev/ttyUSB0 -n   # Dry run (show offsets without writing)
+```
+
 ## Architecture
 
 ### Robot Definition (`lib/bb/example/so101/robot.ex`)
@@ -35,16 +43,21 @@ The robot starts as a supervised child in `application.ex` and exposes commands 
 
 ### Kinematic Structure
 
-Derived from the official SO-ARM100 URDF (new calibration - zeros at joint midpoints):
+Derived from the official SO-ARM100 URDF:
 
 | Joint | Servo ID | Type | Range | Link Length |
 |-------|----------|------|-------|-------------|
 | shoulder_pan | 1 | revolute | ±110° | 62mm (base height) |
-| shoulder_lift | 2 | revolute | ±100° | 54mm |
-| elbow_flex | 3 | revolute | ±97° | 113mm (upper arm) |
+| shoulder_lift | 2 | revolute | -10° to 190° | 54mm |
+| elbow_flex | 3 | revolute | -187° to 7° | 113mm (upper arm) |
 | wrist_flex | 4 | revolute | ±95° | 135mm (forearm) |
 | wrist_roll | 5 | revolute | ±160° | 61mm (wrist) |
-| gripper | 6 | revolute | 10°-100° | ~98mm to EE |
+| gripper | 6 | revolute | -10° to 100° | ~98mm to EE |
+
+### Mix Tasks (`lib/mix/tasks/`)
+
+- **`so101.setup_servos`** - Interactive wizard for assigning servo IDs. Guides the user through connecting each servo one at a time and setting IDs 1-6.
+- **`so101.calibrate`** - Calibrates servo centre offsets. Disables torque, tracks min/max positions as the user moves each joint through its full range, then writes position offsets so the mechanical centre maps to 0 radians.
 
 ### Web Dashboard
 
@@ -78,16 +91,8 @@ Set `SIMULATE=1` to run without hardware. In simulation mode:
 
 ## Hardware Configuration
 
-Configure the serial port via environment or `config/runtime.exs`:
-
-```elixir
-config :bb_example_so101, BB.Example.SO101.Robot,
-  config: [
-    feetech: [
-      device: "/dev/ttyUSB0"  # Your serial device
-    ]
-  ]
-```
+The serial port defaults to `/dev/ttyUSB0` at 1Mbaud. To change it, edit
+`lib/bb_example_so101/application.ex` in the `robot_opts/0` function.
 
 ## Dependencies
 
