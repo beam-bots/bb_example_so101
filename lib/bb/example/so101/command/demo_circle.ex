@@ -37,6 +37,10 @@ defmodule BB.Example.SO101.Command.DemoCircle do
   @default_points 16
   @default_delay 150
 
+  # Motion.move_to/4 can return errors at runtime but dialyzer can't see
+  # through :telemetry.span/3 and thinks it always returns {:ok, meta}
+  @dialyzer {:no_match, [handle_command: 3, execute_path: 4]}
+
   @impl BB.Command
   def handle_command(goal, context, state) do
     radius = Map.get(goal, :radius, @default_radius)
@@ -66,8 +70,8 @@ defmodule BB.Example.SO101.Command.DemoCircle do
             {:stop, :normal, %{state | result: {:error, reason}}}
         end
 
-      {:error, reason, _meta} ->
-        {:stop, :normal, %{state | result: {:error, {:failed_to_reach_start, reason}}}}
+      error ->
+        {:stop, :normal, %{state | result: {:error, {:failed_to_reach_start, error}}}}
     end
   end
 
@@ -92,8 +96,8 @@ defmodule BB.Example.SO101.Command.DemoCircle do
           Process.sleep(delay)
           {:cont, :ok}
 
-        {:error, reason, _meta} ->
-          {:halt, {:error, {:ik_failed, target, reason}}}
+        error ->
+          {:halt, {:error, {:ik_failed, target, error}}}
       end
     end)
   end

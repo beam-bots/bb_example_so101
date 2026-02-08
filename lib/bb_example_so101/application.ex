@@ -9,6 +9,8 @@ defmodule BB.Example.SO101.Application do
 
   use Application
 
+  alias BB.Example.SO101Web
+
   @impl true
   def start(_type, _args) do
     children =
@@ -30,7 +32,7 @@ defmodule BB.Example.SO101.Application do
   # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
-    BB.Example.SO101Web.Endpoint.config_change(changed, removed)
+    SO101Web.Endpoint.config_change(changed, removed)
     :ok
   end
 

@@ -123,22 +123,14 @@ defmodule Mix.Tasks.So101.Calibrate do
   end
 
   defp run_calibration(pid, dry_run) do
-    # Verify all servos are present
     {found, missing} = check_servos(pid)
 
     if missing != [] do
       Mix.shell().error("Missing servos: #{inspect(Enum.map(missing, fn {_, id, _} -> id end))}")
-      Mix.shell().info("Continue anyway? (y/n)")
 
-      case IO.gets("") do
-        data when is_binary(data) ->
-          if String.trim(data) |> String.downcase() != "y" do
-            Mix.shell().info("Calibration cancelled.")
-            return_early()
-          end
-
-        _ ->
-          return_early()
+      unless confirm?("Continue anyway?") do
+        Mix.shell().info("Calibration cancelled.")
+        return_early()
       end
     end
 
@@ -151,20 +143,30 @@ defmodule Mix.Tasks.So101.Calibrate do
       "Found #{length(found)} servo(s). Press Enter to disable torque and begin..."
     )
 
-    case IO.gets("") do
-      data when is_binary(data) ->
-        if String.trim(data) |> String.downcase() == "q" do
-          Mix.shell().info("Calibration cancelled.")
-        else
-          do_calibration(pid, found, dry_run)
-        end
-
-      _ ->
-        Mix.shell().info("Calibration cancelled.")
+    if prompt_quit?() do
+      Mix.shell().info("Calibration cancelled.")
+    else
+      do_calibration(pid, found, dry_run)
     end
   end
 
   defp return_early, do: :ok
+
+  defp confirm?(prompt) do
+    Mix.shell().info(prompt <> " (y/n)")
+
+    case IO.gets("") do
+      data when is_binary(data) -> String.trim(data) |> String.downcase() == "y"
+      _ -> false
+    end
+  end
+
+  defp prompt_quit? do
+    case IO.gets("") do
+      data when is_binary(data) -> String.trim(data) |> String.downcase() == "q"
+      _ -> true
+    end
+  end
 
   defp check_servos(pid) do
     Enum.split_with(@joints, fn {_name, servo_id, _desc} ->
@@ -258,30 +260,33 @@ defmodule Mix.Tasks.So101.Calibrate do
         # Read all positions
         new_state =
           Enum.reduce(joints, state, fn {_name, servo_id, _desc}, acc ->
-            case Feetech.read_raw(pid, servo_id, :present_position) do
-              {:ok, raw_pos} ->
-                update_in(acc, [servo_id], fn data ->
-                  # Unwrap position to handle 0/4095 boundary crossing
-                  unwrapped = unwrap_position(raw_pos, data.raw, data.unwrapped)
-
-                  %{
-                    data
-                    | raw: raw_pos,
-                      unwrapped: unwrapped,
-                      min_unwrapped: min(data.min_unwrapped, unwrapped),
-                      max_unwrapped: max(data.max_unwrapped, unwrapped)
-                  }
-                end)
-
-              _ ->
-                acc
-            end
+            update_servo_tracking(pid, servo_id, acc)
           end)
 
         # Display current state
         display_tracking_state(new_state, joints)
 
         position_tracker_loop(pid, joints, new_state)
+    end
+  end
+
+  defp update_servo_tracking(pid, servo_id, state) do
+    case Feetech.read_raw(pid, servo_id, :present_position) do
+      {:ok, raw_pos} ->
+        update_in(state, [servo_id], fn data ->
+          unwrapped = unwrap_position(raw_pos, data.raw, data.unwrapped)
+
+          %{
+            data
+            | raw: raw_pos,
+              unwrapped: unwrapped,
+              min_unwrapped: min(data.min_unwrapped, unwrapped),
+              max_unwrapped: max(data.max_unwrapped, unwrapped)
+          }
+        end)
+
+      _ ->
+        state
     end
   end
 
@@ -350,40 +355,45 @@ defmodule Mix.Tasks.So101.Calibrate do
     results =
       for {name, servo_id, _desc} <- joints do
         data = state[servo_id]
-        range = data.max_unwrapped - data.min_unwrapped
-
-        if range > 10 do
-          # Calculate center in unwrapped space, then convert to raw (0-4095)
-          center_unwrapped = div(data.min_unwrapped + data.max_unwrapped, 2)
-          center_raw = Integer.mod(center_unwrapped, @steps_per_revolution)
-
-          # Firmware applies: Present_Position = Actual_Position - Offset
-          # So: 2048 = center_raw - offset, therefore offset = center_raw - 2048
-          # Clamp to ±2047 (sign_magnitude bit 11 limit).
-          offset = center_raw - @center_position
-          offset = max(-@max_offset_magnitude, min(@max_offset_magnitude, offset))
-
-          Mix.shell().info("""
-            #{format_joint(name)} (ID #{servo_id}):
-              Range: #{range} steps (#{format_degrees(steps_to_degrees(range))})
-              Center: #{center_raw} -> Offset: #{offset}
-          """)
-
-          if dry_run do
-            {name, servo_id, {:ok, %{range: range, center: center_raw, offset: offset}}}
-          else
-            case apply_calibration(pid, servo_id, offset) do
-              :ok -> {name, servo_id, {:ok, %{offset: offset}}}
-              {:error, reason} -> {name, servo_id, {:error, reason}}
-            end
-          end
-        else
-          Mix.shell().info("  #{format_joint(name)} (ID #{servo_id}): Skipped (not moved enough)")
-          {name, servo_id, {:error, :not_moved}}
-        end
+        process_joint_result(pid, name, servo_id, data, dry_run)
       end
 
     print_summary(results, dry_run)
+  end
+
+  defp process_joint_result(_pid, name, servo_id, data, _dry_run)
+       when data.max_unwrapped - data.min_unwrapped <= 10 do
+    Mix.shell().info("  #{format_joint(name)} (ID #{servo_id}): Skipped (not moved enough)")
+    {name, servo_id, {:error, :not_moved}}
+  end
+
+  defp process_joint_result(pid, name, servo_id, data, dry_run) do
+    range = data.max_unwrapped - data.min_unwrapped
+
+    # Calculate center in unwrapped space, then convert to raw (0-4095)
+    center_unwrapped = div(data.min_unwrapped + data.max_unwrapped, 2)
+    center_raw = Integer.mod(center_unwrapped, @steps_per_revolution)
+
+    # Firmware applies: Present_Position = Actual_Position - Offset
+    # So: 2048 = center_raw - offset, therefore offset = center_raw - 2048
+    # Clamp to ±2047 (sign_magnitude bit 11 limit).
+    offset = center_raw - @center_position
+    offset = max(-@max_offset_magnitude, min(@max_offset_magnitude, offset))
+
+    Mix.shell().info("""
+      #{format_joint(name)} (ID #{servo_id}):
+        Range: #{range} steps (#{format_degrees(steps_to_degrees(range))})
+        Center: #{center_raw} -> Offset: #{offset}
+    """)
+
+    if dry_run do
+      {name, servo_id, {:ok, %{range: range, center: center_raw, offset: offset}}}
+    else
+      case apply_calibration(pid, servo_id, offset) do
+        :ok -> {name, servo_id, {:ok, %{offset: offset}}}
+        {:error, reason} -> {name, servo_id, {:error, reason}}
+      end
+    end
   end
 
   defp reset_position_offset(pid, servo_id) do

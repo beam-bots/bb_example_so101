@@ -22,6 +22,10 @@ defmodule BB.Example.SO101.Command.MoveToPose do
   alias BB.IK.DLS.Motion
   alias BB.Math.Vec3
 
+  # Motion.move_to/4 can return errors at runtime but dialyzer can't see
+  # through :telemetry.span/3 and thinks it always returns {:ok, meta}
+  @dialyzer {:no_match, handle_command: 3}
+
   @impl BB.Command
   def handle_command(%{target: %Vec3{} = target}, context, state) do
     ik_opts = [delivery: :direct, exclude_joints: [:gripper]]
@@ -30,8 +34,8 @@ defmodule BB.Example.SO101.Command.MoveToPose do
       {:ok, _meta} ->
         {:stop, :normal, %{state | result: :reached}}
 
-      {:error, reason, _meta} ->
-        {:stop, :normal, %{state | result: {:error, {:ik_failed, reason}}}}
+      error ->
+        {:stop, :normal, %{state | result: {:error, {:ik_failed, error}}}}
     end
   end
 

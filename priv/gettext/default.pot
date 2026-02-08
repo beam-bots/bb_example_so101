@@ -11,7 +11,7 @@
 msgid ""
 msgstr ""
 
-#: lib/bb_example_so101_web/components/core_components.ex:372
+#: lib/bb_example_so101_web/components/core_components.ex:373
 #, elixir-autogen, elixir-format
 msgid "Actions"
 msgstr ""
@@ -32,7 +32,7 @@ msgstr ""
 msgid "We can't find the internet"
 msgstr ""
 
-#: lib/bb_example_so101_web/components/core_components.ex:78
+#: lib/bb_example_so101_web/components/core_components.ex:79
 #, elixir-autogen, elixir-format
 msgid "close"
 msgstr ""

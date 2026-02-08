@@ -354,33 +354,35 @@ defmodule Mix.Tasks.So101.SetupServos do
     ════════════════════════════════════════════════════════════════
     """)
 
-    configured = Enum.count(results, fn {_, _, r} -> r in [:configured, :already_configured] end)
-    skipped = Enum.count(results, fn {_, _, r} -> r == :skipped end)
-    failed = Enum.count(results, fn {_, _, r} -> r == :failed end)
-    cancelled = Enum.count(results, fn {_, _, r} -> r == :cancelled end)
-
     for {joint, id, result} <- results do
-      status =
-        case result do
-          :configured -> "✓ Configured"
-          :already_configured -> "✓ Already correct"
-          :skipped -> "○ Skipped"
-          :failed -> "✗ Failed"
-          :cancelled -> "○ Cancelled"
-        end
-
-      Mix.shell().info("  #{format_joint(joint)} (ID #{id}): #{status}")
+      Mix.shell().info("  #{format_joint(joint)} (ID #{id}): #{format_result(result)}")
     end
 
     Mix.shell().info("")
 
+    counts = Enum.frequencies_by(results, fn {_, _, r} -> r end)
+    print_summary_message(counts)
+  end
+
+  defp format_result(:configured), do: "✓ Configured"
+  defp format_result(:already_configured), do: "✓ Already correct"
+  defp format_result(:skipped), do: "○ Skipped"
+  defp format_result(:failed), do: "✗ Failed"
+  defp format_result(:cancelled), do: "○ Cancelled"
+
+  defp print_summary_message(%{cancelled: n}) when n > 0 do
+    Mix.shell().info("Setup was cancelled.")
+  end
+
+  defp print_summary_message(%{failed: n}) when n > 0 do
+    Mix.shell().error("#{n} servo(s) failed to configure. Please retry those joints.")
+  end
+
+  defp print_summary_message(counts) do
+    configured = Map.get(counts, :configured, 0) + Map.get(counts, :already_configured, 0)
+    skipped = Map.get(counts, :skipped, 0)
+
     cond do
-      cancelled > 0 ->
-        Mix.shell().info("Setup was cancelled.")
-
-      failed > 0 ->
-        Mix.shell().error("#{failed} servo(s) failed to configure. Please retry those joints.")
-
       skipped > 0 and configured > 0 ->
         Mix.shell().info("#{configured} servo(s) configured successfully, #{skipped} skipped.")
 

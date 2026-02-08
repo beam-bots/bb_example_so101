@@ -5,6 +5,8 @@
 defmodule BB.Example.SO101Web.Endpoint do
   use Phoenix.Endpoint, otp_app: :bb_example_so101
 
+  alias BB.Example.SO101Web
+
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
@@ -28,7 +30,7 @@ defmodule BB.Example.SO101Web.Endpoint do
     at: "/",
     from: :bb_example_so101,
     gzip: not code_reloading?,
-    only: BB.Example.SO101Web.static_paths(),
+    only: SO101Web.static_paths(),
     raise_on_missing_only: code_reloading?
 
   plug Plug.Static,
@@ -63,5 +65,5 @@ defmodule BB.Example.SO101Web.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
-  plug BB.Example.SO101Web.Router
+  plug SO101Web.Router
 end

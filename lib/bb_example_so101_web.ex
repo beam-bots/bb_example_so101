@@ -92,8 +92,8 @@ defmodule BB.Example.SO101Web do
       import BB.Example.SO101Web.CoreComponents
 
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias BB.Example.SO101Web.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
@@ -103,9 +103,9 @@ defmodule BB.Example.SO101Web do
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
-        endpoint: BB.Example.SO101Web.Endpoint,
-        router: BB.Example.SO101Web.Router,
-        statics: BB.Example.SO101Web.static_paths()
+        endpoint: unquote(Module.concat(__MODULE__, Endpoint)),
+        router: unquote(Module.concat(__MODULE__, Router)),
+        statics: unquote(__MODULE__).static_paths()
     end
   end
 
