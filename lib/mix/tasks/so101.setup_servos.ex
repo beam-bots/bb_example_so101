@@ -62,7 +62,7 @@ defmodule Mix.Tasks.So101.SetupServos do
 
   use Mix.Task
 
-  @requirements ["app.start"]
+  # @requirements ["app.start"]
 
   @switches [
     baud_rate: :integer
@@ -263,7 +263,7 @@ defmodule Mix.Tasks.So101.SetupServos do
 
     with :ok <- unlock_eeprom(pid, current_id),
          :ok <- write_id(pid, current_id, target_id),
-         :ok <- Process.sleep(50) || :ok,
+         :ok <- Process.sleep(50),
          :ok <- lock_eeprom(pid, target_id),
          :ok <- verify_servo(pid, target_id) do
       Mix.shell().info("✓ #{format_joint(joint)} servo configured as ID #{target_id}")
@@ -276,21 +276,21 @@ defmodule Mix.Tasks.So101.SetupServos do
   end
 
   defp unlock_eeprom(pid, id) do
-    case Feetech.write_raw(pid, id, :lock, 0) do
+    case Feetech.write_raw(pid, id, :lock, 0, await_response: true) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, {:unlock_failed, reason}}
     end
   end
 
   defp write_id(pid, current_id, new_id) do
-    case Feetech.write_raw(pid, current_id, :id, new_id) do
+    case Feetech.write_raw(pid, current_id, :id, new_id, await_response: true) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, {:write_id_failed, reason}}
     end
   end
 
   defp lock_eeprom(pid, id) do
-    case Feetech.write_raw(pid, id, :lock, 1) do
+    case Feetech.write_raw(pid, id, :lock, 1, await_response: true) do
       {:ok, _} -> :ok
       {:error, _reason} -> :ok
     end

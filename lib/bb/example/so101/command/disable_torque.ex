@@ -26,7 +26,7 @@ defmodule BB.Example.SO101.Command.DisableTorque do
   """
   use BB.Command
 
-  @controller :feetech
+  @controller :feetech_controller
 
   @impl BB.Command
   def handle_command(_goal, context, state) do
