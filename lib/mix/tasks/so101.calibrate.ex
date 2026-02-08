@@ -5,8 +5,8 @@
 defmodule Mix.Tasks.So101.Calibrate do
   @shortdoc "Calibrate servo range of motion and center points"
   @moduledoc """
-  Calibrates servo range of motion by moving each joint until it stalls,
-  then calculates and sets the center point offset.
+  Calibrates servo range of motion by having the user manually move the arm
+  through its full range while tracking min/max positions for all joints.
 
   ## Usage
 
@@ -19,78 +19,50 @@ defmodule Mix.Tasks.So101.Calibrate do
   ## Options
 
     * `--baud-rate`, `-b` - Baud rate (default: 1000000)
-    * `--torque`, `-t` - Torque limit during calibration as percentage (default: 30)
-    * `--speed`, `-s` - Movement speed in degrees/sec (default: 30)
-    * `--load-threshold`, `-l` - Load threshold for stall detection as percentage (default: 50)
-    * `--servo`, `-S` - Calibrate only specific servo ID (can be repeated)
     * `--dry-run`, `-n` - Show what would be done without writing offsets
 
   ## Process
 
-  For each servo, the calibration:
-
-  1. Reduces torque limit for safety
-  2. Commands movement toward one mechanical limit
-  3. Monitors load until stall is detected
-  4. Records the stall position
-  5. Commands movement toward opposite limit
-  6. Records that stall position
-  7. Calculates the mechanical center
-  8. Sets position_offset so center corresponds to 0 radians
-
-  ## Safety
-
-  The servo will move with reduced torque during calibration. Ensure
-  the robot is in a safe position and nothing will obstruct movement.
+  1. Disables torque on ALL servos so you can move the arm freely
+  2. Move every joint through its FULL range of motion
+  3. The display shows live min/max tracking for each joint
+  4. Press Enter when done
+  5. Calculates mechanical center for each joint
+  6. Sets position_offset so center corresponds to 0 radians
 
   ## Example
 
-      # Calibrate all servos
       mix so101.calibrate /dev/ttyUSB0
-
-      # Calibrate with lower torque
-      mix so101.calibrate /dev/ttyUSB0 --torque 20
-
-      # Calibrate specific servos only
-      mix so101.calibrate /dev/ttyUSB0 --servo 1 --servo 2
-
-      # Dry run to see calculations without applying
       mix so101.calibrate /dev/ttyUSB0 --dry-run
   """
 
   use Mix.Task
 
-  @requirements ["app.start"]
+  require Logger
 
   @switches [
     baud_rate: :integer,
-    torque: :integer,
-    speed: :integer,
-    load_threshold: :integer,
-    servo: [:integer, :keep],
     dry_run: :boolean
   ]
 
   @aliases [
     b: :baud_rate,
-    t: :torque,
-    s: :speed,
-    l: :load_threshold,
-    S: :servo,
     n: :dry_run
   ]
 
+  # Joints in order from base to gripper
   @joints [
-    {:shoulder_pan, 1},
-    {:shoulder_lift, 2},
-    {:elbow_flex, 3},
-    {:wrist_flex, 4},
-    {:wrist_roll, 5},
-    {:gripper, 6}
+    {:shoulder_pan, 1, "Base"},
+    {:shoulder_lift, 2, "Shoulder"},
+    {:elbow_flex, 3, "Elbow"},
+    {:wrist_flex, 4, "Wrist"},
+    {:wrist_roll, 5, "Roll"},
+    {:gripper, 6, "Grip"}
   ]
 
   @steps_per_revolution 4096
   @center_position div(@steps_per_revolution, 2)
+  @max_offset_magnitude 2047
 
   @impl Mix.Task
   def run(args) do
@@ -109,34 +81,16 @@ defmodule Mix.Tasks.So101.Calibrate do
 
   defp calibrate_servos(port, opts) do
     baud_rate = Keyword.get(opts, :baud_rate, 1_000_000)
-    torque_percent = Keyword.get(opts, :torque, 30)
-    speed_dps = Keyword.get(opts, :speed, 30)
-    load_threshold = Keyword.get(opts, :load_threshold, 50)
-    servo_filter = Keyword.get_values(opts, :servo)
     dry_run = Keyword.get(opts, :dry_run, false)
 
-    config = %{
-      torque_limit: torque_percent / 100.0,
-      speed: degrees_to_rad_per_sec(speed_dps),
-      load_threshold: load_threshold,
-      dry_run: dry_run
-    }
-
-    joints_to_calibrate =
-      if servo_filter == [] do
-        @joints
-      else
-        Enum.filter(@joints, fn {_name, id} -> id in servo_filter end)
-      end
-
-    print_header(config, dry_run)
+    print_header(dry_run)
 
     Mix.shell().info("Connecting to #{port} at #{format_baud(baud_rate)}...")
 
     case Feetech.start_link(port: port, baud_rate: baud_rate, timeout: 200) do
       {:ok, pid} ->
         try do
-          run_calibration(pid, joints_to_calibrate, config)
+          run_calibration(pid, dry_run)
         after
           Feetech.stop(pid)
         end
@@ -151,301 +105,385 @@ defmodule Mix.Tasks.So101.Calibrate do
     end
   end
 
-  defp print_header(config, dry_run) do
+  defp print_header(dry_run) do
     mode = if dry_run, do: " (DRY RUN)", else: ""
 
     Mix.shell().info("""
 
     ╔═══════════════════════════════════════════════════════════════╗
-    ║              SO-101 Servo Calibration#{String.pad_trailing(mode, 18)}║
+    ║         SO-101 Manual Servo Calibration#{String.pad_trailing(mode, 14)}║
     ╚═══════════════════════════════════════════════════════════════╝
 
-    Configuration:
-      Torque limit: #{round(config.torque_limit * 100)}%
-      Speed: #{round(rad_to_degrees(config.speed))}/sec
-      Load threshold: #{config.load_threshold}%
+    This will disable torque on ALL servos so you can move the arm freely.
 
-    ⚠️  WARNING: Servos will move during calibration!
-    Ensure the robot is in a safe position with no obstructions.
+    Move EVERY joint through its FULL range of motion (to both limits).
+    Press Enter when done to record the ranges and calculate offsets.
+
     """)
   end
 
-  defp run_calibration(pid, joints, config) do
-    Mix.shell().info("Press Enter to begin calibration, or 'q' to quit...")
+  defp run_calibration(pid, dry_run) do
+    # Verify all servos are present
+    {found, missing} = check_servos(pid)
 
-    case prompt_continue() do
-      :continue ->
-        results = calibrate_joints(pid, joints, config, [])
-        print_summary(results, config.dry_run)
+    if missing != [] do
+      Mix.shell().error("Missing servos: #{inspect(Enum.map(missing, fn {_, id, _} -> id end))}")
+      Mix.shell().info("Continue anyway? (y/n)")
 
-      :quit ->
+      case IO.gets("") do
+        data when is_binary(data) ->
+          if String.trim(data) |> String.downcase() != "y" do
+            Mix.shell().info("Calibration cancelled.")
+            return_early()
+          end
+
+        _ ->
+          return_early()
+      end
+    end
+
+    if found == [] do
+      Mix.shell().error("No servos found!")
+      return_early()
+    end
+
+    Mix.shell().info(
+      "Found #{length(found)} servo(s). Press Enter to disable torque and begin..."
+    )
+
+    case IO.gets("") do
+      data when is_binary(data) ->
+        if String.trim(data) |> String.downcase() == "q" do
+          Mix.shell().info("Calibration cancelled.")
+        else
+          do_calibration(pid, found, dry_run)
+        end
+
+      _ ->
         Mix.shell().info("Calibration cancelled.")
     end
   end
 
-  defp calibrate_joints(_pid, [], _config, results), do: Enum.reverse(results)
+  defp return_early, do: :ok
 
-  defp calibrate_joints(pid, [{joint, servo_id} | rest], config, results) do
+  defp check_servos(pid) do
+    Enum.split_with(@joints, fn {_name, servo_id, _desc} ->
+      case Feetech.ping(pid, servo_id) do
+        {:ok, _} -> true
+        _ -> false
+      end
+    end)
+  end
+
+  defp do_calibration(pid, joints, dry_run) do
+    # Reset position offsets and disable torque on all servos
+    Mix.shell().info("\nPreparing servos...")
+
+    for {_name, servo_id, _desc} <- joints do
+      reset_position_offset(pid, servo_id)
+      disable_torque(pid, servo_id)
+    end
+
     Mix.shell().info("""
 
-    ────────────────────────────────────────────────────────────────
-    Calibrating: #{format_joint(joint)} (Servo ID #{servo_id})
-    ────────────────────────────────────────────────────────────────
+    ═══════════════════════════════════════════════════════════════
+    Torque DISABLED on all servos. Move the arm freely now!
+
+    Move each joint to BOTH of its mechanical limits.
+    Press Enter when you've moved all joints through their full range.
+    ═══════════════════════════════════════════════════════════════
     """)
 
-    case ping_servo(pid, servo_id) do
-      :ok ->
-        result = calibrate_single_servo(pid, servo_id, joint, config)
-        calibrate_joints(pid, rest, config, [{joint, servo_id, result} | results])
+    # Track all positions simultaneously
+    results = track_all_positions(pid, joints)
 
-      {:error, reason} ->
-        Mix.shell().error("Servo #{servo_id} not responding: #{inspect(reason)}")
-        Mix.shell().info("Press Enter to skip, or 'q' to quit...")
+    # Process results and apply offsets (torque still disabled)
+    process_all_results(pid, joints, results, dry_run)
 
-        case prompt_continue() do
-          :continue ->
-            calibrate_joints(pid, rest, config, [{joint, servo_id, :not_found} | results])
+    Mix.shell().info("""
 
-          :quit ->
-            Enum.reverse([{joint, servo_id, :cancelled} | results])
+    ⚠️  Torque remains DISABLED on all servos.
+    Manually power cycle or restart the robot to re-enable torque safely.
+    """)
+  end
+
+  defp track_all_positions(pid, joints) do
+    # Read initial positions - track both raw and unwrapped positions
+    # Unwrapped positions handle the 0/4095 wraparound
+    initial_state =
+      for {name, servo_id, desc} <- joints, into: %{} do
+        case Feetech.read_raw(pid, servo_id, :present_position) do
+          {:ok, pos} ->
+            {servo_id,
+             %{
+               name: name,
+               desc: desc,
+               raw: pos,
+               unwrapped: pos,
+               min_unwrapped: pos,
+               max_unwrapped: pos
+             }}
+
+          _ ->
+            {servo_id,
+             %{name: name, desc: desc, raw: 0, unwrapped: 0, min_unwrapped: 0, max_unwrapped: 0}}
         end
+      end
+
+    # Print initial blank lines for the display (so cursor-up works)
+    for _ <- joints, do: IO.puts("")
+
+    # Start tracking loop
+    tracker_pid = spawn_link(fn -> position_tracker_loop(pid, joints, initial_state) end)
+
+    # Wait for user to press Enter
+    IO.gets("")
+
+    # Stop tracking and get results
+    send(tracker_pid, {:get_results, self()})
+
+    receive do
+      {:results, state} -> state
+    after
+      1000 -> initial_state
     end
   end
 
-  defp calibrate_single_servo(pid, servo_id, joint, config) do
-    with :ok <- save_original_settings(pid, servo_id),
-         :ok <- apply_calibration_settings(pid, servo_id, config),
-         {:ok, low_pos} <- find_limit(pid, servo_id, :low, config),
-         {:ok, high_pos} <- find_limit(pid, servo_id, :high, config),
-         :ok <- restore_torque(pid, servo_id) do
-      process_calibration_result(pid, servo_id, joint, low_pos, high_pos, config)
-    else
+  defp position_tracker_loop(pid, joints, state) do
+    receive do
+      {:get_results, caller} ->
+        send(caller, {:results, state})
+    after
+      50 ->
+        # Read all positions
+        new_state =
+          Enum.reduce(joints, state, fn {_name, servo_id, _desc}, acc ->
+            case Feetech.read_raw(pid, servo_id, :present_position) do
+              {:ok, raw_pos} ->
+                update_in(acc, [servo_id], fn data ->
+                  # Unwrap position to handle 0/4095 boundary crossing
+                  unwrapped = unwrap_position(raw_pos, data.raw, data.unwrapped)
+
+                  %{
+                    data
+                    | raw: raw_pos,
+                      unwrapped: unwrapped,
+                      min_unwrapped: min(data.min_unwrapped, unwrapped),
+                      max_unwrapped: max(data.max_unwrapped, unwrapped)
+                  }
+                end)
+
+              _ ->
+                acc
+            end
+          end)
+
+        # Display current state
+        display_tracking_state(new_state, joints)
+
+        position_tracker_loop(pid, joints, new_state)
+    end
+  end
+
+  # Handle position wraparound at 0/4095 boundary
+  defp unwrap_position(current_raw, last_raw, last_unwrapped) do
+    delta = current_raw - last_raw
+
+    cond do
+      # Large positive jump means we wrapped backwards (e.g., 100 -> 4000)
+      delta > 2048 ->
+        last_unwrapped + delta - @steps_per_revolution
+
+      # Large negative jump means we wrapped forwards (e.g., 4000 -> 100)
+      delta < -2048 ->
+        last_unwrapped + delta + @steps_per_revolution
+
+      # Normal movement
+      true ->
+        last_unwrapped + delta
+    end
+  end
+
+  @bar_width 30
+
+  defp display_tracking_state(state, joints) do
+    # Move cursor up to overwrite previous display (one line per joint)
+    num_lines = length(joints)
+    IO.write("\e[#{num_lines}A")
+
+    for {_name, servo_id, desc} <- joints do
+      data = state[servo_id]
+      range = data.max_unwrapped - data.min_unwrapped
+
+      bar =
+        if range > 0 do
+          # Calculate position within the range (0.0 to 1.0)
+          pos_in_range = (data.unwrapped - data.min_unwrapped) / range
+          filled = round(pos_in_range * @bar_width)
+          filled = max(0, min(@bar_width, filled))
+
+          # Build the bar with the position marker
+          left = String.duplicate("█", filled)
+          right = String.duplicate("░", @bar_width - filled)
+          left <> right
+        else
+          String.duplicate("░", @bar_width)
+        end
+
+      # Format: "Base:     [████████░░░░░░░░] 1234 steps (108.5°)"
+      label = String.pad_trailing(desc, 9)
+      range_str = String.pad_leading("#{range}", 4)
+      degrees = format_degrees(steps_to_degrees(range))
+
+      IO.write("\r  #{label} [#{bar}] #{range_str} steps (#{degrees})\e[K\n")
+    end
+  end
+
+  defp process_all_results(pid, joints, state, dry_run) do
+    Mix.shell().info("""
+
+    ════════════════════════════════════════════════════════════════
+                         CALIBRATION RESULTS
+    ════════════════════════════════════════════════════════════════
+    """)
+
+    results =
+      for {name, servo_id, _desc} <- joints do
+        data = state[servo_id]
+        range = data.max_unwrapped - data.min_unwrapped
+
+        if range > 10 do
+          # Calculate center in unwrapped space, then convert to raw (0-4095)
+          center_unwrapped = div(data.min_unwrapped + data.max_unwrapped, 2)
+          center_raw = Integer.mod(center_unwrapped, @steps_per_revolution)
+
+          # Firmware applies: Present_Position = Actual_Position - Offset
+          # So: 2048 = center_raw - offset, therefore offset = center_raw - 2048
+          # Clamp to ±2047 (sign_magnitude bit 11 limit).
+          offset = center_raw - @center_position
+          offset = max(-@max_offset_magnitude, min(@max_offset_magnitude, offset))
+
+          Mix.shell().info("""
+            #{format_joint(name)} (ID #{servo_id}):
+              Range: #{range} steps (#{format_degrees(steps_to_degrees(range))})
+              Center: #{center_raw} -> Offset: #{offset}
+          """)
+
+          if dry_run do
+            {name, servo_id, {:ok, %{range: range, center: center_raw, offset: offset}}}
+          else
+            case apply_calibration(pid, servo_id, offset) do
+              :ok -> {name, servo_id, {:ok, %{offset: offset}}}
+              {:error, reason} -> {name, servo_id, {:error, reason}}
+            end
+          end
+        else
+          Mix.shell().info("  #{format_joint(name)} (ID #{servo_id}): Skipped (not moved enough)")
+          {name, servo_id, {:error, :not_moved}}
+        end
+      end
+
+    print_summary(results, dry_run)
+  end
+
+  defp reset_position_offset(pid, servo_id) do
+    unlock_eeprom(pid, servo_id)
+
+    case Feetech.write_raw(pid, servo_id, :position_offset, 0, await_response: true) do
+      {:ok, _} ->
+        :ok
+
+      :ok ->
+        :ok
+
       {:error, reason} ->
-        Mix.shell().error("Calibration failed: #{inspect(reason)}")
-        restore_torque(pid, servo_id)
-        {:error, reason}
+        Logger.warning("Failed to reset offset for servo #{servo_id}: #{inspect(reason)}")
     end
-  end
 
-  defp save_original_settings(pid, servo_id) do
-    case Feetech.read(pid, servo_id, :torque_limit) do
-      {:ok, _limit} -> :ok
-      {:error, reason} -> {:error, {:read_settings, reason}}
+    lock_eeprom(pid, servo_id)
+
+    # After resetting offset, update goal_position to match new present_position
+    # Otherwise the servo will jump when torque is re-enabled
+    case Feetech.read_raw(pid, servo_id, :present_position) do
+      {:ok, pos} ->
+        Feetech.write_raw(pid, servo_id, :goal_position, pos, await_response: true)
+
+      _ ->
+        :ok
     end
-  end
 
-  defp apply_calibration_settings(pid, servo_id, config) do
-    Mix.shell().info("Setting torque limit to #{round(config.torque_limit * 100)}%...")
-
-    with {:ok, _} <- Feetech.write(pid, servo_id, :torque_enable, true, await_response: true),
-         {:ok, _} <-
-           Feetech.write(pid, servo_id, :torque_limit, config.torque_limit, await_response: true) do
-      :ok
-    else
-      {:error, reason} -> {:error, {:apply_settings, reason}}
-    end
-  end
-
-  defp restore_torque(pid, servo_id) do
-    Feetech.write(pid, servo_id, :torque_limit, 1.0)
     :ok
   end
 
-  defp find_limit(pid, servo_id, direction, config) do
-    target =
-      case direction do
-        :low -> 0
-        :high -> @steps_per_revolution - 1
-      end
-
-    dir_label = if direction == :low, do: "minimum", else: "maximum"
-    Mix.shell().info("Moving toward #{dir_label} position...")
-
-    Feetech.write(pid, servo_id, :goal_speed, config.speed)
-    Feetech.write_raw(pid, servo_id, :goal_position, target)
-
-    wait_for_stall(pid, servo_id, config.load_threshold, direction)
+  defp disable_torque(pid, servo_id) do
+    Feetech.write(pid, servo_id, :torque_enable, false, await_response: true)
+    :ok
   end
 
-  defp wait_for_stall(pid, servo_id, load_threshold, direction) do
-    Process.sleep(100)
-    do_wait_for_stall(pid, servo_id, load_threshold, direction, 0, nil)
+  defp apply_calibration(pid, servo_id, offset) do
+    with :ok <- unlock_eeprom(pid, servo_id),
+         {:ok, _} <-
+           Feetech.write(pid, servo_id, :position_offset, offset, await_response: true),
+         :ok <- verify_offset(pid, servo_id, offset),
+         {:ok, _} <-
+           Feetech.write_raw(pid, servo_id, :min_angle_limit, 0, await_response: true),
+         {:ok, _} <-
+           Feetech.write_raw(pid, servo_id, :max_angle_limit, 4095, await_response: true),
+         :ok <- lock_eeprom(pid, servo_id) do
+      Feetech.write(pid, servo_id, :torque_enable, false, await_response: true)
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
-  defp do_wait_for_stall(pid, servo_id, load_threshold, direction, stable_count, last_pos) do
-    case read_servo_state(pid, servo_id) do
-      {:ok, state} ->
-        load_magnitude = abs(state.load)
-        moving = state.moving
-        current_pos = state.position_raw
+  defp verify_offset(pid, servo_id, expected_offset) do
+    case Feetech.read(pid, servo_id, :position_offset) do
+      {:ok, actual_offset} ->
+        if actual_offset == expected_offset do
+          :ok
+        else
+          Logger.warning(
+            "Servo #{servo_id}: offset mismatch! wrote #{expected_offset}, read back #{actual_offset}"
+          )
 
-        progress_char = progress_indicator(load_magnitude, load_threshold)
-
-        IO.write(
-          "\r  Load: #{String.pad_leading("#{round(load_magnitude)}%", 4)} #{progress_char}  "
-        )
-
-        cond do
-          load_magnitude >= load_threshold ->
-            IO.write("\n")
-            Mix.shell().info("Stall detected at load #{round(load_magnitude)}%")
-            {:ok, current_pos}
-
-          not moving and last_pos != nil and abs(current_pos - last_pos) < 5 ->
-            new_stable = stable_count + 1
-
-            if new_stable > 10 do
-              IO.write("\n")
-              Mix.shell().info("Movement stopped (position stable)")
-              {:ok, current_pos}
-            else
-              Process.sleep(50)
-              do_wait_for_stall(pid, servo_id, load_threshold, direction, new_stable, current_pos)
-            end
-
-          true ->
-            Process.sleep(50)
-            do_wait_for_stall(pid, servo_id, load_threshold, direction, 0, current_pos)
+          {:error, :offset_mismatch}
         end
 
       {:error, reason} ->
-        {:error, {:read_state, reason}}
-    end
-  end
-
-  defp read_servo_state(pid, servo_id) do
-    with {:ok, position_raw} <- Feetech.read_raw(pid, servo_id, :present_position),
-         {:ok, load} <- Feetech.read(pid, servo_id, :present_load),
-         {:ok, moving} <- Feetech.read(pid, servo_id, :moving) do
-      {:ok, %{position_raw: position_raw, load: load, moving: moving}}
-    end
-  end
-
-  defp progress_indicator(load, threshold) do
-    filled = round(load / threshold * 10) |> min(10)
-    empty = 10 - filled
-    "[#{String.duplicate("█", filled)}#{String.duplicate("░", empty)}]"
-  end
-
-  defp process_calibration_result(pid, servo_id, joint, low_pos, high_pos, config) do
-    range_steps = high_pos - low_pos
-    range_degrees = steps_to_degrees(range_steps)
-    mechanical_center = div(low_pos + high_pos, 2)
-    offset = @center_position - mechanical_center
-
-    Mix.shell().info("""
-
-    Calibration results for #{format_joint(joint)}:
-      Low limit:  #{low_pos} steps (#{format_degrees(steps_to_degrees(low_pos))})
-      High limit: #{high_pos} steps (#{format_degrees(steps_to_degrees(high_pos))})
-      Range:      #{range_steps} steps (#{format_degrees(range_degrees)})
-      Mechanical center: #{mechanical_center} steps
-      Required offset:   #{offset} steps
-    """)
-
-    if config.dry_run do
-      Mix.shell().info("(Dry run - offset not applied)")
-      {:ok, %{low: low_pos, high: high_pos, center: mechanical_center, offset: offset}}
-    else
-      apply_offset(pid, servo_id, offset)
-    end
-  end
-
-  defp apply_offset(pid, servo_id, offset) do
-    Mix.shell().info("Applying position offset...")
-
-    with :ok <- unlock_eeprom(pid, servo_id),
-         {:ok, _} <- Feetech.write_raw(pid, servo_id, :position_offset, clamp_offset(offset)),
-         :ok <- lock_eeprom(pid, servo_id) do
-      Mix.shell().info("✓ Offset applied successfully")
-      {:ok, %{offset: offset}}
-    else
-      {:error, reason} ->
-        Mix.shell().error("Failed to apply offset: #{inspect(reason)}")
         {:error, reason}
     end
   end
 
-  defp clamp_offset(offset) do
-    offset
-    |> max(-2048)
-    |> min(2047)
-    |> then(fn o -> if o < 0, do: o + 65536, else: o end)
-  end
-
   defp unlock_eeprom(pid, servo_id) do
-    case Feetech.write_raw(pid, servo_id, :lock, 0) do
-      {:ok, _} -> :ok
-      error -> error
-    end
-  end
-
-  defp lock_eeprom(pid, servo_id) do
-    case Feetech.write_raw(pid, servo_id, :lock, 1) do
+    case Feetech.write_raw(pid, servo_id, :lock, 0, await_response: true) do
       {:ok, _} -> :ok
       {:error, _} -> :ok
     end
   end
 
-  defp ping_servo(pid, servo_id) do
-    case Feetech.ping(pid, servo_id) do
+  defp lock_eeprom(pid, servo_id) do
+    case Feetech.write_raw(pid, servo_id, :lock, 1, await_response: true) do
       {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:error, _} -> :ok
     end
   end
 
   defp print_summary(results, dry_run) do
-    Mix.shell().info("""
-
-    ════════════════════════════════════════════════════════════════
-                         CALIBRATION SUMMARY
-    ════════════════════════════════════════════════════════════════
-    """)
-
-    for {joint, servo_id, result} <- results do
-      status =
-        case result do
-          {:ok, data} when is_map(data) ->
-            offset = Map.get(data, :offset, "?")
-            "✓ Offset: #{offset} steps"
-
-          :not_found ->
-            "○ Not found"
-
-          :cancelled ->
-            "○ Cancelled"
-
-          {:error, reason} ->
-            "✗ Error: #{inspect(reason)}"
-        end
-
-      Mix.shell().info("  #{format_joint(joint)} (ID #{servo_id}): #{status}")
-    end
-
     Mix.shell().info("")
 
+    successful = Enum.count(results, fn {_, _, r} -> match?({:ok, _}, r) end)
+    failed = length(results) - successful
+
     if dry_run do
-      Mix.shell().info("This was a dry run. No changes were written to the servos.")
+      Mix.shell().info("DRY RUN: #{successful} joint(s) would be calibrated.")
       Mix.shell().info("Run without --dry-run to apply the offsets.")
     else
-      successful = Enum.count(results, fn {_, _, r} -> match?({:ok, _}, r) end)
-      Mix.shell().info("#{successful} servo(s) calibrated successfully.")
-    end
-  end
+      Mix.shell().info("#{successful} joint(s) calibrated successfully.")
 
-  defp prompt_continue do
-    case IO.gets("") do
-      :eof ->
-        :quit
-
-      {:error, _} ->
-        :quit
-
-      data ->
-        case String.trim(data) |> String.downcase() do
-          "q" -> :quit
-          _ -> :continue
-        end
+      if failed > 0 do
+        Mix.shell().info("#{failed} joint(s) skipped or failed.")
+      end
     end
   end
 
@@ -460,10 +498,6 @@ defmodule Mix.Tasks.So101.Calibrate do
   defp format_baud(rate) when rate >= 1_000_000, do: "#{div(rate, 1_000_000)}M baud"
   defp format_baud(rate) when rate >= 1000, do: "#{div(rate, 1000)}k baud"
   defp format_baud(rate), do: "#{rate} baud"
-
-  defp degrees_to_rad_per_sec(dps), do: dps * :math.pi() / 180.0
-
-  defp rad_to_degrees(rad), do: rad * 180.0 / :math.pi()
 
   defp steps_to_degrees(steps), do: steps * 360.0 / @steps_per_revolution
 
