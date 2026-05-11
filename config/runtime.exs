@@ -24,6 +24,8 @@ if System.get_env("PHX_SERVER") do
   config :bb_example_so101, BB.Example.SO101Web.Endpoint, server: true
 end
 
+config :nx, default_backend: EXLA.Backend
+
 config :bb_example_so101, BB.Example.SO101Web.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
