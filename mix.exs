@@ -45,7 +45,7 @@ defmodule BB.Example.SO101.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:bb, bb_dep("~> 0.14")},
+      {:bb, bb_dep("~> 0.15 and >= 0.15.2")},
       {:bb_ik_dls, bb_dep("~> 0.3", :bb_ik_dls)},
       {:bb_liveview, bb_dep("~> 0.2", :bb_liveview)},
       {:bb_reactor, bb_dep("~> 0.2", :bb_reactor)},
