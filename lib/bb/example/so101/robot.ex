@@ -132,7 +132,7 @@ defmodule BB.Example.SO101.Robot do
           upper(~u(110 degree))
           effort(~u(2.5 newton_meter))
           velocity(~u(360 degree_per_second))
-          acceleration(~u(720 degree_per_square_second))
+          acceleration(~u(2160 degree_per_square_second))
         end
 
         actuator(
@@ -181,7 +181,7 @@ defmodule BB.Example.SO101.Robot do
               upper(~u(190 degree))
               effort(~u(2.5 newton_meter))
               velocity(~u(360 degree_per_second))
-              acceleration(~u(720 degree_per_square_second))
+              acceleration(~u(2160 degree_per_square_second))
             end
 
             actuator(
@@ -230,7 +230,7 @@ defmodule BB.Example.SO101.Robot do
                   upper(~u(7 degree))
                   effort(~u(2.5 newton_meter))
                   velocity(~u(360 degree_per_second))
-                  acceleration(~u(720 degree_per_square_second))
+                  acceleration(~u(2160 degree_per_square_second))
                 end
 
                 actuator(
@@ -279,7 +279,7 @@ defmodule BB.Example.SO101.Robot do
                       upper(~u(95 degree))
                       effort(~u(2.5 newton_meter))
                       velocity(~u(360 degree_per_second))
-                      acceleration(~u(720 degree_per_square_second))
+                      acceleration(~u(2160 degree_per_square_second))
                     end
 
                     actuator(
@@ -328,7 +328,7 @@ defmodule BB.Example.SO101.Robot do
                           upper(~u(160 degree))
                           effort(~u(2.5 newton_meter))
                           velocity(~u(360 degree_per_second))
-                          acceleration(~u(720 degree_per_square_second))
+                          acceleration(~u(2160 degree_per_square_second))
                         end
 
                         actuator(
@@ -377,7 +377,7 @@ defmodule BB.Example.SO101.Robot do
                               upper(~u(100 degree))
                               effort(~u(2.5 newton_meter))
                               velocity(~u(360 degree_per_second))
-                              acceleration(~u(720 degree_per_square_second))
+                              acceleration(~u(2160 degree_per_square_second))
                             end
 
                             actuator(
