@@ -135,11 +135,12 @@ defmodule BB.Example.SO101.Robot do
           acceleration(~u(2160 degree_per_square_second))
         end
 
-        actuator(
-          :shoulder_pan_servo,
-          {BB.Servo.Feetech.Actuator,
-           servo_id: 1, controller: :feetech_controller, reverse?: true}
-        )
+        actuator :shoulder_pan_servo,
+                 {BB.Servo.Feetech.Actuator, servo_id: 1, controller: :feetech_controller} do
+          transmission do
+            reversed?(true)
+          end
+        end
 
         link :shoulder_link do
           visual do
@@ -184,11 +185,13 @@ defmodule BB.Example.SO101.Robot do
               acceleration(~u(2160 degree_per_square_second))
             end
 
-            actuator(
-              :shoulder_lift_servo,
-              {BB.Servo.Feetech.Actuator,
-               servo_id: 2, controller: :feetech_controller, reverse?: true}
-            )
+            actuator :shoulder_lift_servo,
+                     {BB.Servo.Feetech.Actuator, servo_id: 2, controller: :feetech_controller} do
+              transmission do
+                offset(~u(90.0 degree))
+                reversed?(true)
+              end
+            end
 
             link :upper_arm_link do
               visual do
@@ -233,11 +236,13 @@ defmodule BB.Example.SO101.Robot do
                   acceleration(~u(2160 degree_per_square_second))
                 end
 
-                actuator(
-                  :elbow_servo,
-                  {BB.Servo.Feetech.Actuator,
-                   servo_id: 3, controller: :feetech_controller, reverse?: true}
-                )
+                actuator :elbow_servo,
+                         {BB.Servo.Feetech.Actuator, servo_id: 3, controller: :feetech_controller} do
+                  transmission do
+                    offset(~u(-90.0 degree))
+                    reversed?(true)
+                  end
+                end
 
                 link :forearm_link do
                   visual do
@@ -282,11 +287,13 @@ defmodule BB.Example.SO101.Robot do
                       acceleration(~u(2160 degree_per_square_second))
                     end
 
-                    actuator(
-                      :wrist_flex_servo,
-                      {BB.Servo.Feetech.Actuator,
-                       servo_id: 4, controller: :feetech_controller, reverse?: true}
-                    )
+                    actuator :wrist_flex_servo,
+                             {BB.Servo.Feetech.Actuator,
+                              servo_id: 4, controller: :feetech_controller} do
+                      transmission do
+                        reversed?(true)
+                      end
+                    end
 
                     link :wrist_link do
                       visual do
@@ -331,11 +338,13 @@ defmodule BB.Example.SO101.Robot do
                           acceleration(~u(2160 degree_per_square_second))
                         end
 
-                        actuator(
-                          :wrist_roll_servo,
-                          {BB.Servo.Feetech.Actuator,
-                           servo_id: 5, controller: :feetech_controller, reverse?: true}
-                        )
+                        actuator :wrist_roll_servo,
+                                 {BB.Servo.Feetech.Actuator,
+                                  servo_id: 5, controller: :feetech_controller} do
+                          transmission do
+                            reversed?(true)
+                          end
+                        end
 
                         link :gripper_link do
                           visual do
