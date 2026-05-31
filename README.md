@@ -8,6 +8,11 @@ SPDX-License-Identifier: Apache-2.0
 
 # BB Example: SO-101
 
+[![CI](https://github.com/beam-bots/bb_example_so101/actions/workflows/ci.yml/badge.svg)](https://github.com/beam-bots/bb_example_so101/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![REUSE status](https://api.reuse.software/badge/github.com/beam-bots/bb_example_so101)](https://api.reuse.software/info/github.com/beam-bots/bb_example_so101)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/beam-bots/bb_example_so101)
+
 Example Phoenix application demonstrating the [Beam Bots](https://github.com/beam-bots/bb) robotics framework with a [SO-101 robot arm](https://github.com/TheRobotStudio/SO-ARM100) from TheRobotStudio.
 
 ## Features
