@@ -14,7 +14,7 @@ defmodule BB.Example.SO101.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      dialyzer: [plt_add_apps: [:mix, :bb_ik_dls]],
+      dialyzer: [plt_add_apps: [:bb_ik_dls, :ex_unit, :mix]],
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
