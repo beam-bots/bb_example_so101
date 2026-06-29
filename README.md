@@ -118,12 +118,10 @@ the robot, then send commands.
 ### Serial Port Configuration
 
 By default the application connects to `/dev/ttyUSB0` at 1Mbaud. To use
-a different port, edit `lib/bb_example_so101/application.ex`:
+a different port, set the `FEETECH_DEVICE` environment variable:
 
-```elixir
-defp robot_opts do
-  [params: [config: [feetech: [device: "/dev/ttyACM0"]]]]
-end
+```bash
+FEETECH_DEVICE=/dev/ttyACM0 mix phx.server
 ```
 
 ## Commands

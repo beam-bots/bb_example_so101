@@ -48,7 +48,8 @@ defmodule BB.Example.SO101.Application do
     if System.get_env("SIMULATE") do
       [simulation: :kinematic]
     else
-      [params: [config: [feetech: [device: "/dev/ttyUSB0"]]]]
+      device = System.get_env("FEETECH_DEVICE", "/dev/ttyUSB0")
+      [params: [config: [feetech: [device: device]]]]
     end
   end
 end
