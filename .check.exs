@@ -5,6 +5,7 @@
 [
   tools: [
     {:credo, "mix credo --strict"},
-    {:reuse, command: ["pipx", "run", "--spec", "reuse[charset-normalizer]", "reuse", "lint", "-q"]}
+    {:reuse,
+     command: ["pipx", "run", "--spec", "reuse[charset-normalizer]", "reuse", "lint", "-q"]}
   ]
 ]
