@@ -69,7 +69,14 @@ The router mounts `bb_dashboard("/", robot: BB.Example.SO101.Robot)` from `bb_li
 
 ### Command Handlers (`lib/bb/example/so101/command/`)
 
-Commands implement `BB.Command` behaviour with `handle_command/2`. They receive a context containing the compiled robot struct and can send motion commands via `BB.Motion`.
+Commands implement the `BB.Command` behaviour with `handle_command/3`. Its
+inputs are the goal map supplied by the caller, a `BB.Command.Context` containing
+the robot module, compiled robot, current robot state, and execution ID, and the
+handler state returned by `init/1`. The handler state is threaded through later
+callbacks. When the command terminates, `result/1` receives the final handler
+state and returns `{:ok, result}`, `{:ok, result, next_state: state}`, or
+`{:error, reason}` to awaiting callers. Handlers can send motion commands using
+the context with `BB.Motion`.
 
 ## Physical Units
 
