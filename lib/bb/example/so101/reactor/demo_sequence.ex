@@ -18,7 +18,7 @@ defmodule BB.Example.SO101.Reactor.DemoSequence do
       {:ok, :homed} = Reactor.run(
         BB.Example.SO101.Reactor.DemoSequence,
         %{},
-        context: %{private: %{bb_robot: BB.Example.SO101.Robot}}
+        %{private: %{bb_robot: BB.Example.SO101.Robot}}
       )
   """
   use Reactor, extensions: [BB.Reactor]
