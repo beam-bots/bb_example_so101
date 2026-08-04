@@ -115,12 +115,12 @@ defmodule BB.Example.SO101.Command.DemoCircle do
   # motion. With consecutive waypoints ~3° apart in joint space, IK converges
   # in 1-3 iterations instead of the ~15-25 it takes from a cold start.
   defp execute_path(context, targets, tolerance, timeout, ik_opts) do
-    seed_positions = RobotState.get_all_positions(context.robot_state)
+    seed_positions = RobotState.get_all_configurations(context.robot_state)
     solver_opts = Keyword.delete(ik_opts, :delivery)
 
     targets
     |> Enum.reduce_while({:ok, seed_positions}, fn target, {:ok, positions} ->
-      case DLS.solve(context.robot, positions, :ee_link, target, solver_opts) do
+      case DLS.solve(context.robot, positions, :base_link, :ee_link, target, solver_opts) do
         {:ok, new_positions, _meta} ->
           BBMotion.send_positions(context, new_positions, delivery: :direct)
           wait_for_arrival(context, target, tolerance, timeout)
@@ -163,7 +163,7 @@ defmodule BB.Example.SO101.Command.DemoCircle do
   end
 
   defp current_ee_distance(context, target) do
-    positions = RobotState.get_all_positions(context.robot_state)
+    positions = RobotState.get_all_configurations(context.robot_state)
     {x, y, z} = Kinematics.link_position(context.robot, positions, :ee_link)
 
     :math.sqrt(
