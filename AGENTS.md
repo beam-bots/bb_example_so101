@@ -85,7 +85,7 @@ BB uses the `~u` sigil for physical quantities throughout the DSL:
 ```elixir
 ~u(0.1 meter)
 ~u(90 degree)
-~u(360 degree_per_second)
+~u(333 degree_per_second)
 ~u(2.5 newton_meter)
 ```
 

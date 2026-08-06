@@ -20,6 +20,16 @@ defmodule BB.Example.SO101.Robot do
   | wrist_roll | 5 | revolute | ±160° |
   | gripper | 6 | revolute | 10°-100° |
 
+  ## Velocity Limits
+
+  Every joint is limited to 333°/s, which is what an STS3215 C001 does at 7.4V
+  (0.18s per 60°, no load). It is deliberately not a round 360°/s: the servo
+  cannot reach that, `BB.Servo.Feetech.Actuator` refuses to start above 359.9°/s
+  because the `goal_speed` register cannot express it, and the limit is what
+  `BeginMotion` computes arrival times from — so an optimistic figure makes
+  every motion estimate wrong. If your servos are geared differently (the
+  1:191 and 1:147 variants are faster), measure and put the real number here.
+
   ## Link Lengths
 
   - Base height: 62mm
@@ -131,7 +141,7 @@ defmodule BB.Example.SO101.Robot do
           lower(~u(-110 degree))
           upper(~u(110 degree))
           effort(~u(2.5 newton_meter))
-          velocity(~u(360 degree_per_second))
+          velocity(~u(333 degree_per_second))
           acceleration(~u(2160 degree_per_square_second))
         end
 
@@ -181,7 +191,7 @@ defmodule BB.Example.SO101.Robot do
               lower(~u(-10 degree))
               upper(~u(190 degree))
               effort(~u(2.5 newton_meter))
-              velocity(~u(360 degree_per_second))
+              velocity(~u(333 degree_per_second))
               acceleration(~u(2160 degree_per_square_second))
             end
 
@@ -232,7 +242,7 @@ defmodule BB.Example.SO101.Robot do
                   lower(~u(-187 degree))
                   upper(~u(7 degree))
                   effort(~u(2.5 newton_meter))
-                  velocity(~u(360 degree_per_second))
+                  velocity(~u(333 degree_per_second))
                   acceleration(~u(2160 degree_per_square_second))
                 end
 
@@ -283,7 +293,7 @@ defmodule BB.Example.SO101.Robot do
                       lower(~u(-95 degree))
                       upper(~u(95 degree))
                       effort(~u(2.5 newton_meter))
-                      velocity(~u(360 degree_per_second))
+                      velocity(~u(333 degree_per_second))
                       acceleration(~u(2160 degree_per_square_second))
                     end
 
@@ -334,7 +344,7 @@ defmodule BB.Example.SO101.Robot do
                           lower(~u(-160 degree))
                           upper(~u(160 degree))
                           effort(~u(2.5 newton_meter))
-                          velocity(~u(360 degree_per_second))
+                          velocity(~u(333 degree_per_second))
                           acceleration(~u(2160 degree_per_square_second))
                         end
 
@@ -385,7 +395,7 @@ defmodule BB.Example.SO101.Robot do
                               lower(~u(-10 degree))
                               upper(~u(100 degree))
                               effort(~u(2.5 newton_meter))
-                              velocity(~u(360 degree_per_second))
+                              velocity(~u(333 degree_per_second))
                               acceleration(~u(2160 degree_per_square_second))
                             end
 
