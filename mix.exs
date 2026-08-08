@@ -50,6 +50,7 @@ defmodule BB.Example.SO101.MixProject do
       {:bb_liveview, bb_dep("~> 0.2", :bb_liveview)},
       {:bb_reactor, bb_dep("~> 0.2", :bb_reactor)},
       {:bb_servo_feetech, bb_dep("~> 0.2", :bb_servo_feetech)},
+      bb_so101_dep(),
       {:exla,
        github: "elixir-nx/nx",
        ref: "42f8da7b2e7d24d526ea513d21e2c3b45a2e8051",
@@ -110,6 +111,26 @@ defmodule BB.Example.SO101.MixProject do
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
+  end
+
+  # `bb_so101` ships the hardware setup and calibration mix tasks, and nothing
+  # that runs. It needs its own clause because the dependency options differ in
+  # shape between a version requirement and a path.
+  defp bb_so101_dep do
+    case System.get_env("BB_VERSION") do
+      "local" ->
+        {:bb_so101, path: "../bb_so101", only: :dev, runtime: false, override: true}
+
+      "main" ->
+        {:bb_so101,
+         git: "https://github.com/beam-bots/bb_so101.git",
+         only: :dev,
+         runtime: false,
+         override: true}
+
+      _ ->
+        {:bb_so101, "~> 0.2", only: :dev, runtime: false}
+    end
   end
 
   defp bb_dep(default, package \\ :bb) do

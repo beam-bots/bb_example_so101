@@ -61,7 +61,7 @@ a unique ID. The setup wizard walks you through connecting each servo
 one at a time and assigning the correct ID.
 
 ```bash
-mix so101.setup_servos /dev/ttyUSB0
+mix bb_so101.setup_servos /dev/ttyUSB0
 ```
 
 The wizard will prompt you to connect each servo individually:
@@ -83,7 +83,7 @@ the controller board.
 With all servos connected and powered, run the calibration task:
 
 ```bash
-mix so101.calibrate /dev/ttyUSB0
+mix bb_so101.calibrate /dev/ttyUSB0
 ```
 
 This will:
@@ -99,7 +99,7 @@ This will:
 You can preview the results without writing to the servos:
 
 ```bash
-mix so101.calibrate /dev/ttyUSB0 --dry-run
+mix bb_so101.calibrate /dev/ttyUSB0 --dry-run
 ```
 
 Calibration only needs to be done once - the offsets are stored in the
@@ -173,13 +173,13 @@ lib/
 │       └── disable_torque.ex
 ├── bb_example_so101/
 │   └── application.ex        # Supervision tree
-├── bb_example_so101_web/     # Phoenix web layer
-│   ├── router.ex             # Mounts bb_dashboard
-│   └── ...
-└── mix/tasks/
-    ├── so101.setup_servos.ex # Servo ID assignment wizard
-    └── so101.calibrate.ex    # Servo calibration
+└── bb_example_so101_web/     # Phoenix web layer
+    ├── router.ex             # Mounts bb_dashboard
+    └── ...
 ```
+
+Hardware setup and calibration tasks live in the
+[`bb_so101`](https://github.com/beam-bots/bb_so101) package rather than here.
 
 ## Development
 
