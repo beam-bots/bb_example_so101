@@ -20,6 +20,24 @@ defmodule BB.Example.SO101.Robot do
   | wrist_roll | 5 | revolute | ±160° |
   | gripper | 6 | revolute | 10°-100° |
 
+  ## Velocity and Acceleration Limits
+
+  Every joint is limited to 300°/s and 400°/s². Both are measured rather than
+  round, and neither makes the arm slower — the servo was already doing this.
+
+  300°/s is what an STS3215 reached on the bench with nothing attached; the
+  specification sheet's 333°/s (0.18s per 60°, no load) was not achievable, and
+  it will be lower again under load. 400°/s² sits just inside the ceiling of
+  the `acceleration` register, which firmware 3.10 clamps at 50 raw — 439.5°/s²
+  — however much more you write.
+
+  These are what `BeginMotion` computes arrival times from, so an optimistic
+  figure makes every motion estimate wrong rather than making anything quicker.
+  `BB.Servo.Feetech.Actuator` reads the acceleration register back at startup
+  and refuses to run if the servo did not take what it was given. If your
+  servos are geared differently (the 1:191 and 1:147 variants are faster),
+  measure and put the real numbers here.
+
   ## Link Lengths
 
   - Base height: 62mm
@@ -131,8 +149,8 @@ defmodule BB.Example.SO101.Robot do
           lower(~u(-110 degree))
           upper(~u(110 degree))
           effort(~u(2.5 newton_meter))
-          velocity(~u(360 degree_per_second))
-          acceleration(~u(2160 degree_per_square_second))
+          velocity(~u(300 degree_per_second))
+          acceleration(~u(400 degree_per_square_second))
         end
 
         actuator :shoulder_pan_servo,
@@ -181,8 +199,8 @@ defmodule BB.Example.SO101.Robot do
               lower(~u(-10 degree))
               upper(~u(190 degree))
               effort(~u(2.5 newton_meter))
-              velocity(~u(360 degree_per_second))
-              acceleration(~u(2160 degree_per_square_second))
+              velocity(~u(300 degree_per_second))
+              acceleration(~u(400 degree_per_square_second))
             end
 
             actuator :shoulder_lift_servo,
@@ -232,8 +250,8 @@ defmodule BB.Example.SO101.Robot do
                   lower(~u(-187 degree))
                   upper(~u(7 degree))
                   effort(~u(2.5 newton_meter))
-                  velocity(~u(360 degree_per_second))
-                  acceleration(~u(2160 degree_per_square_second))
+                  velocity(~u(300 degree_per_second))
+                  acceleration(~u(400 degree_per_square_second))
                 end
 
                 actuator :elbow_servo,
@@ -283,8 +301,8 @@ defmodule BB.Example.SO101.Robot do
                       lower(~u(-95 degree))
                       upper(~u(95 degree))
                       effort(~u(2.5 newton_meter))
-                      velocity(~u(360 degree_per_second))
-                      acceleration(~u(2160 degree_per_square_second))
+                      velocity(~u(300 degree_per_second))
+                      acceleration(~u(400 degree_per_square_second))
                     end
 
                     actuator :wrist_flex_servo,
@@ -334,8 +352,8 @@ defmodule BB.Example.SO101.Robot do
                           lower(~u(-160 degree))
                           upper(~u(160 degree))
                           effort(~u(2.5 newton_meter))
-                          velocity(~u(360 degree_per_second))
-                          acceleration(~u(2160 degree_per_square_second))
+                          velocity(~u(300 degree_per_second))
+                          acceleration(~u(400 degree_per_square_second))
                         end
 
                         actuator :wrist_roll_servo,
@@ -385,8 +403,8 @@ defmodule BB.Example.SO101.Robot do
                               lower(~u(-10 degree))
                               upper(~u(100 degree))
                               effort(~u(2.5 newton_meter))
-                              velocity(~u(360 degree_per_second))
-                              acceleration(~u(2160 degree_per_square_second))
+                              velocity(~u(300 degree_per_second))
+                              acceleration(~u(400 degree_per_square_second))
                             end
 
                             actuator(
