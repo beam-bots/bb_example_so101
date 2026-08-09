@@ -23,9 +23,10 @@ mix check --no-retry   # Run all checks (compile, format, credo, dialyzer)
 ### Hardware Mix Tasks
 
 ```bash
-mix so101.setup_servos /dev/ttyUSB0   # Assign servo IDs (one at a time)
-mix so101.calibrate /dev/ttyUSB0      # Calibrate centre offsets
-mix so101.calibrate /dev/ttyUSB0 -n   # Dry run (show offsets without writing)
+mix bb_so101.setup_servos /dev/ttyUSB0   # Assign servo IDs (one at a time)
+mix bb_so101.calibrate /dev/ttyUSB0      # Calibrate centre offsets
+mix bb_so101.calibrate /dev/ttyUSB0 -n   # Dry run (show offsets without writing)
+mix bb_so101.calibrate /dev/ttyUSB0 -j gripper  # Only the joints you disturbed
 ```
 
 ## Architecture
@@ -56,8 +57,11 @@ Derived from the official SO-ARM100 URDF:
 
 ### Mix Tasks (`lib/mix/tasks/`)
 
-- **`so101.setup_servos`** - Interactive wizard for assigning servo IDs. Guides the user through connecting each servo one at a time and setting IDs 1-6.
-- **`so101.calibrate`** - Calibrates servo centre offsets. Disables torque, tracks min/max positions as the user moves each joint through its full range, then writes position offsets so the mechanical centre maps to 0 radians.
+These come from the `bb_so101` package, a dev-only dependency; this project does not
+carry its own copies.
+
+- **`bb_so101.setup_servos`** - Interactive wizard for assigning servo IDs. Guides the user through connecting each servo one at a time and setting IDs 1-6.
+- **`bb_so101.calibrate`** - Calibrates servo centre offsets. Disables torque, tracks min/max positions as the user moves each joint through its full range, then writes position offsets so the mechanical centre maps to 0 radians.
 
 ### Web Dashboard
 
