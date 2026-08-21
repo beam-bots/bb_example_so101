@@ -69,7 +69,6 @@ defmodule BB.Example.SO101.Command.DemoCircle do
     start_position = Vec3.new(@start_x, @start_y, @start_z)
 
     ik_opts = [
-      delivery: :direct,
       exclude_joints: [:gripper],
       tolerance: @ik_tolerance,
       step_size: @ik_step_size,
@@ -110,24 +109,23 @@ defmodule BB.Example.SO101.Command.DemoCircle do
     end
   end
 
-  # Solves each waypoint warm-starting from the previous IK solution rather
-  # than from robot_state, which the position estimator overwrites during arm
-  # motion. With consecutive waypoints ~3° apart in joint space, IK converges
-  # in 1-3 iterations instead of the ~15-25 it takes from a cold start.
+  # Solves each waypoint warm-starting from the previous IK solution rather than
+  # from robot_state, which reports where the joints actually are and so lags the
+  # target while the arm is still travelling. With consecutive waypoints ~3°
+  # apart in joint space, IK converges in 1-3 iterations instead of the ~15-25 it
+  # takes from a cold start.
   defp execute_path(context, targets, tolerance, timeout, ik_opts) do
     seed_positions = RobotState.get_all_configurations(context.robot_state)
-    solver_opts = Keyword.delete(ik_opts, :delivery)
 
     targets
     |> Enum.reduce_while({:ok, seed_positions}, fn target, {:ok, positions} ->
-      case DLS.solve(context.robot, positions, :base_link, :ee_link, target, solver_opts) do
-        {:ok, new_positions, _meta} ->
-          BBMotion.send_positions(context, new_positions, delivery: :direct)
-          wait_for_arrival(context, target, tolerance, timeout)
-          {:cont, {:ok, new_positions}}
-
-        {:error, _} = error ->
-          {:halt, {:error, {:ik_failed, target, error}}}
+      with {:ok, new_positions, _meta} <-
+             DLS.solve(context.robot, positions, :base_link, :ee_link, target, ik_opts),
+           :ok <- BBMotion.send_positions(context, new_positions) do
+        wait_for_arrival(context, target, tolerance, timeout)
+        {:cont, {:ok, new_positions}}
+      else
+        {:error, reason} -> {:halt, {:error, {:waypoint_failed, target, reason}}}
       end
     end)
     |> case do
@@ -136,10 +134,10 @@ defmodule BB.Example.SO101.Command.DemoCircle do
     end
   end
 
-  # Poll the position estimator until the EE is within `tolerance` of `target`
-  # or `timeout_ms` elapses. Motion.move_to/send_positions writes its target
-  # into robot_state immediately, so we sleep one estimator tick (~20 ms) first
-  # to let the actual interpolated position arrive.
+  # Poll joint feedback until the EE is within `tolerance` of `target` or
+  # `timeout_ms` elapses. `BB.Robot.State` only ever holds measured positions, so
+  # sleep one feedback tick (~20 ms) before the first check rather than answering
+  # it from before the command landed and calling that arrival.
   defp wait_for_arrival(context, target, tolerance, timeout_ms) do
     Process.sleep(25)
     deadline = System.monotonic_time(:millisecond) + timeout_ms
