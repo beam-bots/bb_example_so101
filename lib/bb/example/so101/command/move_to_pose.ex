@@ -28,14 +28,12 @@ defmodule BB.Example.SO101.Command.MoveToPose do
 
   @impl BB.Command
   def handle_command(%{target: %Vec3{} = target}, context, state) do
-    ik_opts = [delivery: :direct, exclude_joints: [:gripper]]
-
-    case Motion.move_to(context, :ee_link, target, ik_opts) do
+    case Motion.move_to(context, :ee_link, target, exclude_joints: [:gripper]) do
       {:ok, _meta} ->
         {:stop, :normal, %{state | result: :reached}}
 
-      error ->
-        {:stop, :normal, %{state | result: {:error, {:ik_failed, error}}}}
+      {:error, reason} ->
+        {:stop, :normal, %{state | result: {:error, reason}}}
     end
   end
 
