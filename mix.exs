@@ -57,7 +57,7 @@ defmodule BB.Example.SO101.MixProject do
        sparse: "exla",
        optional: true,
        override: true},
-      {:nx, "~> 0.11", override: true},
+      {:nx, "~> 1.0", override: true},
       {:feetech, bb_dep("~> 0.2", :feetech)},
       {:phoenix, "~> 1.8.3"},
       {:phoenix_html, "~> 4.1"},
