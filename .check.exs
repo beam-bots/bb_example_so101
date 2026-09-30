@@ -5,6 +5,8 @@
 [
   tools: [
     {:credo, "mix credo --strict"},
+    {:hex_audit, "mix hex.audit"},
+    {:mix_audit, false},
     # `mix gettext.extract` force-recompiles the project, which empties
     # `_build/<env>/lib/<app>/ebin` and `.../consolidated` for a second or two.
     # Anything reading those beams at that moment sees nothing: dialyzer in
